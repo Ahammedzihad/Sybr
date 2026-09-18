@@ -25,6 +25,15 @@ class EmailAnalyzer:
     def __init__(self):
         self._extract = tldextract.TLDExtract(suffix_list_urls=None)
 
+    def _get_registered_domain(self, ext, domain: str) -> str:
+        """Helper to get registered domain across tldextract versions."""
+        top_domain = getattr(ext, "top_domain_under_public_suffix", None)
+        if top_domain:
+            return top_domain.lower()
+        if hasattr(ext, "domain") and hasattr(ext, "suffix") and ext.domain and ext.suffix:
+            return f"{ext.domain}.{ext.suffix}".lower()
+        return domain.lower()
+
     def analyze(self, sender: str, subject: str = "", message_preview: str = "") -> Dict[str, Any]:
         """
         Analyzes a sender address and contextual subject for phishing indicators.
@@ -59,7 +68,7 @@ class EmailAnalyzer:
 
         if domain:
             ext = self._extract(domain)
-            registered_domain = ext.registered_domain.lower() if ext.registered_domain else domain
+            registered_domain = self._get_registered_domain(ext, domain)
             tld = ext.suffix.lower()
 
             # 2. Check Suspicious TLD

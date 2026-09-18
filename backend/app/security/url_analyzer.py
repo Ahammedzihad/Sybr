@@ -1,6 +1,5 @@
 """Rule-based URL security analyzer."""
 
-import re
 from typing import Any, Dict, List
 from urllib.parse import urlparse
 import tldextract
@@ -25,6 +24,15 @@ class URLAnalyzer:
     def __init__(self):
         # Extract domain info without network requests
         self._extract = tldextract.TLDExtract(suffix_list_urls=None)
+
+    def _get_registered_domain(self, ext, hostname: str) -> str:
+        """Helper to get registered domain across tldextract versions."""
+        top_domain = getattr(ext, "top_domain_under_public_suffix", None)
+        if top_domain:
+            return top_domain.lower()
+        if hasattr(ext, "domain") and hasattr(ext, "suffix") and ext.domain and ext.suffix:
+            return f"{ext.domain}.{ext.suffix}".lower()
+        return hostname.lower()
 
     def analyze(self, url: str) -> Dict[str, Any]:
         """
@@ -83,7 +91,7 @@ class URLAnalyzer:
 
         # 3. Check URL Shorteners
         ext = self._extract(hostname)
-        registered_domain = ext.registered_domain.lower() if ext.registered_domain else hostname
+        registered_domain = self._get_registered_domain(ext, hostname)
 
         if registered_domain in KNOWN_SHORTENERS:
             is_suspicious = True
