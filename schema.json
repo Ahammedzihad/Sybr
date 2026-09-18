@@ -1,0 +1,182 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Conversation Intelligence Record",
+  "description": "Locked schema for AI Customer Support Intelligence & Phishing Threat Detection System. All 4 team members code against this from hour 0.5 onward.",
+  "type": "object",
+  "required": [
+    "conversation_id",
+    "category",
+    "sentiment",
+    "priority",
+    "summary",
+    "resolution_status",
+    "threat_type",
+    "social_engineering",
+    "suspicious_url",
+    "risk_level",
+    "recommended_action"
+  ],
+  "properties": {
+    "conversation_id": {
+      "type": "string",
+      "description": "Unique ID for the conversation, e.g. CS-10245",
+      "example": "CS-10245"
+    },
+
+    "category": {
+      "type": "string",
+      "description": "Complaint category — Person 2 (Gemini) output",
+      "enum": ["Billing", "Account/Login", "Delivery", "Technical", "Security", "Other"]
+    },
+
+    "sentiment": {
+      "type": "string",
+      "description": "Overall sentiment — Person 2 (Gemini) output",
+      "enum": ["Positive", "Neutral", "Negative"]
+    },
+
+    "emotion": {
+      "type": ["string", "null"],
+      "description": "Optional finer-grained emotion — Person 2 (Gemini) output",
+      "enum": ["Anger", "Frustration", "Confusion", "Urgency", "Satisfaction", null]
+    },
+
+    "priority": {
+      "type": "string",
+      "description": "Urgency/priority of the conversation — Person 2 (Gemini) output",
+      "enum": ["Low", "Medium", "High", "Critical"]
+    },
+
+    "summary": {
+      "type": "string",
+      "description": "Structured short summary of the thread — Person 2 (Gemini) output",
+      "example": "Customer reports ₹2,500 deducted but order not confirmed."
+    },
+
+    "customer_request": {
+      "type": ["string", "null"],
+      "description": "What the customer is explicitly asking for — Person 2 (Gemini) output"
+    },
+
+    "resolution_status": {
+      "type": "string",
+      "description": "Whether the issue has been resolved — Person 3 (backend aggregation) output",
+      "enum": ["Resolved", "Unresolved"]
+    },
+
+    "security_analysis": {
+      "type": "object",
+      "description": "Combined security findings — Person 1 (rules) feeds into Person 2 (Gemini combined-intelligence prompt)",
+      "properties": {
+        "threat_type": {
+          "type": ["string", "null"],
+          "description": "Type of threat detected, if any",
+          "enum": ["Phishing", "Social Engineering", "None", null]
+        },
+        "social_engineering": {
+          "type": "string",
+          "description": "Whether a social-engineering technique was detected",
+          "enum": ["Yes", "No", "Possible"]
+        },
+        "technique": {
+          "type": ["string", "null"],
+          "description": "Specific technique, if social_engineering is Yes/Possible",
+          "enum": [
+            "Urgency",
+            "Credential Harvesting",
+            "OTP Request",
+            "Impersonation",
+            null
+          ]
+        },
+        "suspicious_url": {
+          "type": "boolean",
+          "description": "Whether a suspicious URL was detected — Person 1 (url_check.py) output"
+        },
+        "url_risk": {
+          "type": ["string", "null"],
+          "description": "Risk level of any detected URL — Person 1 (url_check.py) output",
+          "enum": ["Low", "Medium", "High", null]
+        },
+        "url_reason": {
+          "type": ["string", "null"],
+          "description": "Short explanation for the URL risk rating — Person 1 (url_check.py) output"
+        },
+        "suspicious_email": {
+          "type": "boolean",
+          "description": "Whether a suspicious email address was detected — Person 1 (email_check.py) output"
+        },
+        "email_risk": {
+          "type": ["string", "null"],
+          "description": "Risk level of any detected email address — Person 1 (email_check.py) output",
+          "enum": ["Low", "Medium", "High", null]
+        },
+        "email_reason": {
+          "type": ["string", "null"],
+          "description": "Short explanation for the email risk rating — Person 1 (email_check.py) output"
+        },
+        "credential_otp_request": {
+          "type": "boolean",
+          "description": "Whether the message requests credentials or an OTP"
+        }
+      },
+      "required": [
+        "threat_type",
+        "social_engineering",
+        "suspicious_url",
+        "suspicious_email",
+        "credential_otp_request"
+      ]
+    },
+
+    "risk_level": {
+      "type": "string",
+      "description": "Overall combined risk level — Person 2 (Gemini combined-intelligence prompt) output",
+      "enum": ["Low", "Medium", "High", "Critical"]
+    },
+
+    "recommended_action": {
+      "type": "string",
+      "description": "Human-readable recommended next step — Person 2 (Gemini) output",
+      "example": "Escalate for security and payment investigation."
+    },
+
+    "raw_text": {
+      "type": ["string", "null"],
+      "description": "Original raw conversation/message text, kept for reference/debugging"
+    },
+
+    "timestamp": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "When the conversation was ingested/processed"
+    }
+  },
+
+  "example_record": {
+    "conversation_id": "CS-10245",
+    "category": "Billing",
+    "sentiment": "Negative",
+    "emotion": "Frustration",
+    "priority": "High",
+    "summary": "Customer reports ₹2,500 deducted but order not confirmed.",
+    "customer_request": "Refund or order confirmation",
+    "resolution_status": "Unresolved",
+    "security_analysis": {
+      "threat_type": "Phishing",
+      "social_engineering": "Possible",
+      "technique": "Urgency",
+      "suspicious_url": true,
+      "url_risk": "High",
+      "url_reason": "Lookalike domain (paypa1-support.com) with no HTTPS",
+      "suspicious_email": false,
+      "email_risk": null,
+      "email_reason": null,
+      "credential_otp_request": true
+    },
+    "risk_level": "High",
+    "recommended_action": "Escalate for security and payment investigation.",
+    "raw_text": "Hi, I was charged twice and got a link to 'verify my account'...",
+    "timestamp": "2026-09-18T09:45:00Z"
+  }
+}
