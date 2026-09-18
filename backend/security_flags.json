@@ -1,0 +1,191 @@
+[
+  {
+    "conversation_id": "TICK-1001",
+    "suspicious_url": false,
+    "url_risk": "Low",
+    "url_reason": null,
+    "suspicious_email": false,
+    "email_risk": "Low",
+    "email_reason": null
+  },
+  {
+    "conversation_id": "TICK-1002",
+    "suspicious_url": false,
+    "url_risk": "Low",
+    "url_reason": null,
+    "suspicious_email": false,
+    "email_risk": "Low",
+    "email_reason": null
+  },
+  {
+    "conversation_id": "TICK-1004",
+    "suspicious_url": false,
+    "url_risk": "Low",
+    "url_reason": null,
+    "suspicious_email": false,
+    "email_risk": "Low",
+    "email_reason": "Low risk: Verified legitimate domain 'store.com' without suspicious indicators."
+  },
+  {
+    "conversation_id": "CS-00008",
+    "suspicious_url": false,
+    "url_risk": "Low",
+    "url_reason": null,
+    "suspicious_email": false,
+    "email_risk": "Low",
+    "email_reason": null
+  },
+  {
+    "conversation_id": "CS-00009",
+    "suspicious_url": false,
+    "url_risk": "Low",
+    "url_reason": null,
+    "suspicious_email": false,
+    "email_risk": "Low",
+    "email_reason": null
+  },
+  {
+    "conversation_id": "TICK-1007",
+    "suspicious_url": false,
+    "url_risk": "Low",
+    "url_reason": null,
+    "suspicious_email": false,
+    "email_risk": "Low",
+    "email_reason": null
+  },
+  {
+    "conversation_id": "TICK-1008",
+    "suspicious_url": false,
+    "url_risk": "Low",
+    "url_reason": null,
+    "suspicious_email": false,
+    "email_risk": "Low",
+    "email_reason": null
+  },
+  {
+    "conversation_id": "TICK-1009",
+    "suspicious_url": false,
+    "url_risk": "Low",
+    "url_reason": null,
+    "suspicious_email": false,
+    "email_risk": "Low",
+    "email_reason": null
+  },
+  {
+    "conversation_id": "CS-00017",
+    "suspicious_url": false,
+    "url_risk": "Low",
+    "url_reason": null,
+    "suspicious_email": false,
+    "email_risk": "Low",
+    "email_reason": null
+  },
+  {
+    "conversation_id": "TICK-1012",
+    "suspicious_url": false,
+    "url_risk": "Low",
+    "url_reason": null,
+    "suspicious_email": false,
+    "email_risk": "Low",
+    "email_reason": null
+  },
+  {
+    "conversation_id": "TICK-1013",
+    "suspicious_url": false,
+    "url_risk": "Low",
+    "url_reason": null,
+    "suspicious_email": false,
+    "email_risk": "Low",
+    "email_reason": null
+  },
+  {
+    "conversation_id": "SYNTH-PHISH-01",
+    "suspicious_url": true,
+    "url_risk": "High",
+    "url_reason": "High risk (score 4): unencrypted HTTP (+1), raw IP address host (+3).",
+    "suspicious_email": false,
+    "email_risk": "Low",
+    "email_reason": null
+  },
+  {
+    "conversation_id": "SYNTH-PHISH-02",
+    "suspicious_url": true,
+    "url_risk": "Medium",
+    "url_reason": "Medium risk (score 2): unencrypted HTTP (+1), URL shortener service (+1).",
+    "suspicious_email": false,
+    "email_risk": "Low",
+    "email_reason": null
+  },
+  {
+    "conversation_id": "SYNTH-PHISH-03",
+    "suspicious_url": true,
+    "url_risk": "Medium",
+    "url_reason": "Medium risk (score 2): unencrypted HTTP (+1), URL shortener service (+1).",
+    "suspicious_email": true,
+    "email_risk": "High",
+    "email_reason": "High risk (score 6): lookalike typosquatting of brand 'stripe' (+3); display name suggests official role ('Stripe Billing Notifications') but sender domain is 'str1pe-billing.example' (+3)."
+  },
+  {
+    "conversation_id": "SYNTH-PHISH-04",
+    "suspicious_url": true,
+    "url_risk": "Medium",
+    "url_reason": "Medium risk (score 2): unencrypted HTTP (+1), long URL length (109 chars > 75) (+1).",
+    "suspicious_email": false,
+    "email_risk": "Low",
+    "email_reason": null
+  },
+  {
+    "conversation_id": "SYNTH-PHISH-05",
+    "suspicious_url": true,
+    "url_risk": "High",
+    "url_reason": "High risk (score 4): unencrypted HTTP (+1), raw IP address host (+3).",
+    "suspicious_email": false,
+    "email_risk": "Low",
+    "email_reason": null
+  },
+  {
+    "conversation_id": "SYNTH-PHISH-06",
+    "suspicious_url": false,
+    "url_risk": "Low",
+    "url_reason": null,
+    "suspicious_email": true,
+    "email_risk": "Medium",
+    "email_reason": "Medium risk (score 3): display name suggests official role ('Internal Helpdesk') but sender domain is 'slck-internal.example' (+3)."
+  },
+  {
+    "conversation_id": "SYNTH-PHISH-07",
+    "suspicious_url": true,
+    "url_risk": "High",
+    "url_reason": "High risk (score 4): unencrypted HTTP (+1), lookalike typosquatting of brand 'paypal' (+3).",
+    "suspicious_email": false,
+    "email_risk": "Low",
+    "email_reason": null
+  },
+  {
+    "conversation_id": "SYNTH-PHISH-08",
+    "suspicious_url": true,
+    "url_risk": "Medium",
+    "url_reason": "Medium risk (score 3): lookalike typosquatting of brand 'amazon' (+3).",
+    "suspicious_email": true,
+    "email_risk": "High",
+    "email_reason": "High risk (score 6): lookalike typosquatting of brand 'amazon' (+3); display name suggests official role ('Account Security Dispatch') but sender domain is 'amaz0n-security.example' (+3)."
+  },
+  {
+    "conversation_id": "SYNTH-PHISH-09",
+    "suspicious_url": true,
+    "url_risk": "Medium",
+    "url_reason": "Medium risk (score 3): lookalike typosquatting of brand 'paypal' (+3).",
+    "suspicious_email": true,
+    "email_risk": "High",
+    "email_reason": "High risk (score 6): lookalike typosquatting of brand 'paypal' (+3); display name suggests official role ('PayPal Resolution Center') but sender domain is 'paypa1-security.example' (+3)."
+  },
+  {
+    "conversation_id": "SYNTH-PHISH-10",
+    "suspicious_url": true,
+    "url_risk": "High",
+    "url_reason": "High risk (score 4): unencrypted HTTP (+1), lookalike typosquatting of brand 'microsoft' (+3).",
+    "suspicious_email": true,
+    "email_risk": "High",
+    "email_reason": "High risk (score 6): lookalike typosquatting of brand 'microsoft' (+3); display name suggests official role ('Microsoft 365 Admin Center') but sender domain is 'micros0ft-verify.example' (+3)."
+  }
+]

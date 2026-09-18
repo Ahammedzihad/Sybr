@@ -1,0 +1,142 @@
+[
+  {
+    "conversation_id": "TICK-1001",
+    "messages": [
+      {
+        "sender": "customer",
+        "text": "<p>Hello support,</p><p>I was charged ₹1,499 twice for my monthly premium plan on September 15th. 😡 Please issue a refund immediately.</p><div>Sent from my iPhone</div>",
+        "timestamp": "2026-09-15T08:12:00Z"
+      },
+      {
+        "sender": "agent",
+        "text": "Dear customer, we apologize for the inconvenience. We have verified the duplicate charge and initiated a refund of ₹1,499 to your original payment method. Best regards, Support Team",
+        "timestamp": "2026-09-15T08:30:00Z"
+      },
+      {
+        "sender": "customer",
+        "text": "Thank you so much for the quick resolution! 🙏",
+        "timestamp": "2026-09-15T08:45:00Z"
+      }
+    ]
+  },
+  {
+    "conversation_id": "TICK-1002",
+    "messages": [
+      {
+        "sender": "customer",
+        "text": "<div>Help! I cannot access my dashboard. When I enter my email it says “Account locked due to multiple invalid attempts”.</div><br/>> Previous ticket #8941 closed without fix.",
+        "timestamp": "2026-09-15T09:10:00Z"
+      },
+      {
+        "sender": "agent",
+        "text": "Hello, we have unlocked your account and sent a password reset link to your registered email address.",
+        "timestamp": "2026-09-15T09:25:00Z"
+      }
+    ]
+  },
+  {
+    "conversation_id": "TICK-1004",
+    "messages": [
+      {
+        "sender": "customer",
+        "text": "---------- Forwarded message ---------\\nFrom: billing-alerts@store.com\\nDate: Mon, Sep 14, 2026 at 10:00 AM\\nSubject: Invoice #44812\\n\\nI need a revised VAT invoice for my business with tax ID €820.00 inclusive of VAT. Thanks!",
+        "timestamp": "2026-09-15T10:05:00Z"
+      }
+    ]
+  },
+  {
+    "conversation_id": "CS-00008",
+    "messages": [
+      {
+        "sender": "customer",
+        "text": "I placed order #ORD-9921 three days ago, but the tracking page still says 'Pending shipment'. Can you check the status? 📦",
+        "timestamp": "2026-09-15T10:40:00Z"
+      }
+    ]
+  },
+  {
+    "conversation_id": "CS-00009",
+    "messages": [
+      {
+        "sender": "agent",
+        "text": "Hi there! Your order is currently being packed in our warehouse and will ship by 5 PM today.",
+        "timestamp": "2026-09-15T10:55:00Z"
+      }
+    ]
+  },
+  {
+    "conversation_id": "TICK-1007",
+    "messages": [
+      {
+        "sender": "customer",
+        "text": "Bonjour, mon colis n'est pas encore arrivé. Le numéro de suivi indique qu'il est bloqué au centre de tri. Merci de vérifier.",
+        "timestamp": "2026-09-15T11:20:00Z"
+      },
+      {
+        "sender": "agent",
+        "text": "Bonjour, nous avons contacté le transporteur pour débloquer votre colis. Vous recevrez une mise à jour sous 24h.",
+        "timestamp": "2026-09-15T11:50:00Z"
+      }
+    ]
+  },
+  {
+    "conversation_id": "TICK-1008",
+    "messages": [
+      {
+        "sender": "customer",
+        "text": "<span style='color:red;'>Bug report:</span> The API endpoint <code>/v1/telemetry</code> is returning 502 Bad Gateway intermittently when payload size exceeds 2MB.",
+        "timestamp": "2026-09-15T12:00:00Z"
+      },
+      {
+        "sender": "agent",
+        "text": "Thanks for reporting this. Our engineering team deployed a fix for the reverse proxy buffer limits.",
+        "timestamp": "2026-09-15T12:45:00Z"
+      }
+    ]
+  },
+  {
+    "conversation_id": "TICK-1009",
+    "messages": [
+      {
+        "sender": "customer",
+        "text": "<div>How do I update my credit card details on file? The settings button is greyed out.</div>\\n---\\nSent from my Samsung Galaxy device",
+        "timestamp": "2026-09-15T13:10:00Z"
+      }
+    ]
+  },
+  {
+    "conversation_id": "CS-00017",
+    "messages": [
+      {
+        "sender": "customer",
+        "text": "नमस्ते, मुझे अपना ऑर्डर कैंसिल करना है और रिफंड चाहिए। कृपया सहायता करें।",
+        "timestamp": "2026-09-15T13:30:00Z"
+      }
+    ]
+  },
+  {
+    "conversation_id": "TICK-1012",
+    "messages": [
+      {
+        "sender": "customer",
+        "text": "<div>Good morning,</div>\\n<div>We need to upgrade our enterprise tier from 50 seats to 100 seats. Could an account manager contact us with pricing? $5,000 budget approved.</div>\\n\\nBest regards,\\nMichael Chang\\nDirector of IT",
+        "timestamp": "2026-09-15T14:00:00Z"
+      },
+      {
+        "sender": "agent",
+        "text": "Hello Michael, our enterprise team lead has been assigned and will schedule a call with you this afternoon.",
+        "timestamp": "2026-09-15T14:20:00Z"
+      }
+    ]
+  },
+  {
+    "conversation_id": "TICK-1013",
+    "messages": [
+      {
+        "sender": "customer",
+        "text": "<p>Can someone explain this $15.00 international transaction fee on my receipt? I thought local billing was supported.</p>",
+        "timestamp": "2026-09-15T14:45:00Z"
+      }
+    ]
+  }
+]
