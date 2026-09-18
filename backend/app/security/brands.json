@@ -1,0 +1,42 @@
+{
+  "paypal": {
+    "official_domains": ["paypal.com", "paypal.me", "paypal-community.com"],
+    "keywords": ["paypal"]
+  },
+  "microsoft": {
+    "official_domains": ["microsoft.com", "live.com", "office.com", "outlook.com", "azure.com"],
+    "keywords": ["microsoft", "office365", "outlook"]
+  },
+  "google": {
+    "official_domains": ["google.com", "gmail.com", "googlemail.com", "youtube.com"],
+    "keywords": ["google", "gmail"]
+  },
+  "apple": {
+    "official_domains": ["apple.com", "icloud.com"],
+    "keywords": ["apple", "icloud"]
+  },
+  "amazon": {
+    "official_domains": ["amazon.com", "amazon.in", "aws.amazon.com", "primevideo.com"],
+    "keywords": ["amazon", "prime"]
+  },
+  "netflix": {
+    "official_domains": ["netflix.com"],
+    "keywords": ["netflix"]
+  },
+  "sbi": {
+    "official_domains": ["onlinesbi.sbi", "sbi.co.in"],
+    "keywords": ["sbi", "onlinesbi", "statebank"]
+  },
+  "hdfc": {
+    "official_domains": ["hdfcbank.com", "hdfc.com"],
+    "keywords": ["hdfc", "hdfcbank"]
+  },
+  "icici": {
+    "official_domains": ["icicibank.com"],
+    "keywords": ["icici", "icicibank"]
+  },
+  "meta": {
+    "official_domains": ["facebook.com", "instagram.com", "whatsapp.com", "meta.com"],
+    "keywords": ["facebook", "instagram", "whatsapp", "meta"]
+  }
+}
