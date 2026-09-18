@@ -179,5 +179,25 @@ def main():
     print("==================================================")
 
 
+def test_aggregation():
+    import tempfile
+    fresh_db = tempfile.NamedTemporaryFile(suffix="_agg_test.db", delete=False).name
+    old_db = os.environ.get("DATABASE_PATH")
+    os.environ["DATABASE_PATH"] = fresh_db
+    storage.init_db(fresh_db)
+    try:
+        main()
+    finally:
+        if old_db:
+            os.environ["DATABASE_PATH"] = old_db
+        else:
+            os.environ.pop("DATABASE_PATH", None)
+        if Path(fresh_db).exists():
+            try:
+                os.unlink(fresh_db)
+            except OSError:
+                pass
+
+
 if __name__ == "__main__":
     main()

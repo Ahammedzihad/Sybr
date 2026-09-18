@@ -91,7 +91,18 @@ async def analyze(payload: Dict[str, Any] = Body(...)) -> Dict[str, Any]:
         if "raw_text" in payload:
             messages = [{"text": payload["raw_text"]}]
         elif "message" in payload:
-            messages = [{"text": payload["message"]}]
+            sender = payload.get("sender", "")
+            subject = payload.get("subject", "")
+            urls = payload.get("urls", [])
+            body_parts = []
+            if sender:
+                body_parts.append(f"From: {sender}")
+            if subject:
+                body_parts.append(f"Subject: {subject}")
+            body_parts.append(str(payload["message"]))
+            if urls and isinstance(urls, list):
+                body_parts.append("URLs:\n" + "\n".join(str(u) for u in urls if u))
+            messages = [{"sender": sender or "customer", "text": "\n".join(body_parts)}]
         else:
             messages = []
     elif not isinstance(messages, list):
@@ -123,9 +134,17 @@ async def analyze(payload: Dict[str, Any] = Body(...)) -> Dict[str, Any]:
     tags=["Conversations"],
     response_model=List[Dict[str, Any]],
 )
-async def get_conversations() -> List[Dict[str, Any]]:
-    """Returns all stored conversation records."""
-    return storage.get_all()
+async def get_conversations(
+    risk_level: Optional[str] = None,
+    category: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """Returns stored conversation records with optional risk_level and category filtering."""
+    records = storage.get_all()
+    if risk_level and risk_level.upper() != "ALL":
+        records = [r for r in records if str(r.get("risk_level", "")).lower() == risk_level.lower()]
+    if category and category.upper() != "ALL":
+        records = [r for r in records if str(r.get("category", "")).lower() == category.lower()]
+    return records
 
 
 @app.get(

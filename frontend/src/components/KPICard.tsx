@@ -5,7 +5,7 @@ interface KPICardProps {
   value: number | string;
   subtitle?: string;
   icon: ReactNode;
-  variant?: 'default' | 'danger' | 'success' | 'warning';
+  variant?: 'default' | 'danger' | 'success' | 'warning' | 'info';
 }
 
 export const KPICard: React.FC<KPICardProps> = ({
@@ -20,6 +20,7 @@ export const KPICard: React.FC<KPICardProps> = ({
     danger: 'border-rose-900/40 hover:border-rose-700/60 bg-rose-950/10',
     warning: 'border-amber-900/40 hover:border-amber-700/60 bg-amber-950/10',
     success: 'border-emerald-900/40 hover:border-emerald-700/60 bg-emerald-950/10',
+    info: 'border-sky-900/40 hover:border-sky-700/60 bg-sky-950/10',
   }[variant];
 
   return (

@@ -10,12 +10,28 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 DB_FILE_DEFAULT = Path(__file__).resolve().parent / "data" / "conversations.db"
-DB_PATH = os.getenv("DATABASE_PATH", str(DB_FILE_DEFAULT))
+
+
+def get_db_path() -> str:
+    """Returns active database path, respecting DATABASE_PATH environment variable."""
+    env_path = os.getenv("DATABASE_PATH")
+    if not env_path:
+        return str(DB_FILE_DEFAULT)
+
+    p = Path(env_path)
+    if p.is_absolute() or p.exists():
+        return str(p)
+
+    backend_relative = Path(__file__).resolve().parent / env_path
+    if backend_relative.exists():
+        return str(backend_relative)
+
+    return str(p)
 
 
 def get_db_connection(db_path: Optional[str] = None) -> sqlite3.Connection:
     """Returns a SQLite connection."""
-    active_path = db_path or DB_PATH
+    active_path = db_path or get_db_path()
     Path(active_path).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(active_path)
     return conn

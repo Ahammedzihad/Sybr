@@ -90,7 +90,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             />
             <span className="hidden md:inline">API:</span>
             <span>{isOnline ? 'Online' : 'Offline'}</span>
-            {health?.mock_mode === 'true' && (
+            {(health?.mock_mode === 'true' || health?.mock_mode === 'mock') && (
               <span className="ml-1 text-[10px] text-amber-300 font-mono px-1 rounded bg-amber-950/80 border border-amber-800/50">
                 MOCK
               </span>

@@ -148,7 +148,10 @@ SAMPLE_RECORDS = [
 
 
 def test_dashboard():
-    print(f"Testing with isolated database: {test_db}")
+    fresh_db = tempfile.NamedTemporaryFile(suffix="_dashboard_test.db", delete=False).name
+    os.environ["DATABASE_PATH"] = fresh_db
+    storage.init_db(fresh_db)
+    print(f"Testing with isolated database: {fresh_db}")
 
     # 1. Post all 10 sample records through /analyze
     print(f"Ingesting {len(SAMPLE_RECORDS)} sample records via /analyze...")
