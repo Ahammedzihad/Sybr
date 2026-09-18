@@ -53,6 +53,21 @@ async def startup_event():
     storage.init_db()
 
 
+@app.get(
+    "/health",
+    summary="Service health check",
+    tags=["System"],
+)
+async def health_check() -> Dict[str, str]:
+    """Returns application status and database connectivity for frontend Navbar."""
+    return {
+        "status": "ok",
+        "version": "1.0.0",
+        "mock_mode": "mock",
+        "database": "connected",
+    }
+
+
 @app.post(
     "/analyze",
     summary="Analyze conversation",
@@ -146,8 +161,13 @@ async def get_dashboard() -> Dict[str, Any]:
         sentiment_counter: Counter = Counter()
         category_counter: Counter = Counter()
         risk_level_counter: Counter = Counter()
+        emotion_counter: Counter = Counter()
+        threat_type_counter: Counter = Counter()
         unresolved_count = 0
+        resolved_count = 0
+        pending_count = 0
         critical_count = 0
+        high_risk_count = 0
 
         for r in records:
             try:
@@ -169,34 +189,49 @@ async def get_dashboard() -> Dict[str, Any]:
                 if risk_level is not None and isinstance(risk_level, str) and risk_level.strip():
                     risk_level_counter[risk_level.strip()] += 1
 
-                # 4. unresolved_count = count where resolution_status == "Unresolved"
-                res_status = str(r.get("resolution_status", "")).strip()
-                if res_status.lower() == "unresolved":
-                    unresolved_count += 1
+                # 4. emotion and threat_type counters
+                emotion = r.get("emotion")
+                if emotion and isinstance(emotion, str) and emotion.strip():
+                    emotion_counter[emotion.strip()] += 1
 
-                # 5. critical_count = count where priority == "Critical" or risk_level == "Critical"
-                priority = str(r.get("priority", "")).strip()
-                risk_val = str(risk_level or "").strip()
-                if priority.lower() == "critical" or risk_val.lower() == "critical":
+                threat_type = r.get("threat_type")
+                if threat_type and isinstance(threat_type, str) and threat_type.strip():
+                    threat_type_counter[threat_type.strip()] += 1
+
+                # 5. resolution status counts
+                res_status = str(r.get("resolution_status", "")).strip().lower()
+                if res_status == "unresolved":
+                    unresolved_count += 1
+                elif res_status == "resolved":
+                    resolved_count += 1
+                elif res_status in ["pending", "flagged", "under review"]:
+                    pending_count += 1
+
+                # 6. critical and high risk counts
+                priority = str(r.get("priority", "")).strip().lower()
+                risk_val = str(risk_level or "").strip().lower()
+                if priority == "critical" or risk_val == "critical":
                     critical_count += 1
+                if risk_val in ["critical", "high"]:
+                    high_risk_count += 1
 
             except Exception as rec_err:
                 logger.warning(f"Error parsing conversation record in dashboard: {rec_err}")
                 continue
 
-        # 6. most_common_complaint: top category from category_distribution, or "N/A" if empty
+        # 7. most_common_complaint: top category from category_distribution, or "N/A" if empty
         if category_counter:
             valid_cats = [cat for cat, _ in category_counter.most_common() if cat.lower() != "unknown"]
             most_common_complaint = valid_cats[0] if valid_cats else category_counter.most_common(1)[0][0]
         else:
             most_common_complaint = "N/A"
 
-        # 7. frequently_reported_issues & most_frequent_issue
+        # 8. frequently_reported_issues & most_frequent_issue
         freq_issues = frequently_reported_issues()
         top_keywords = freq_issues.get("by_keyword", [])
         most_frequent_issue = top_keywords[0][0] if top_keywords else "N/A"
 
-        # 8. total_complaints: sum of complaint categories (excluding unknown if other categories exist)
+        # 9. total_complaints: sum of complaint categories (excluding unknown if other categories exist)
         complaints_sum = sum(cnt for cat, cnt in category_counter.items() if cat.lower() != "unknown")
         total_complaints = complaints_sum if complaints_sum > 0 else sum(category_counter.values())
 
@@ -211,6 +246,15 @@ async def get_dashboard() -> Dict[str, Any]:
             "most_common_complaint": most_common_complaint,
             "most_frequent_issue": most_frequent_issue,
             "frequently_reported_issues": freq_issues,
+            # Frontend UI alignment fields
+            "high_risk_count": high_risk_count,
+            "resolved_count": resolved_count,
+            "pending_count": pending_count,
+            "categories": dict(category_counter),
+            "sentiments": dict(sentiment_counter),
+            "emotions": dict(emotion_counter),
+            "risk_levels": dict(risk_level_counter),
+            "threat_types": dict(threat_type_counter),
         }
 
     except Exception as err:
