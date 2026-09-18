@@ -1,0 +1,472 @@
+{
+  "DEMO-01": {
+    "metadata": {
+      "id": "DEMO-01",
+      "title": "Confirmed Phishing - IP Literal & Typosquatted Domain",
+      "raw_text": "URGENT: Your account has been suspended due to unauthorized access. Verify your credentials immediately at http://192.168.1.10/login to restore access.",
+      "messages": [
+        {
+          "sender": "customer",
+          "text": "I received this email saying my account was suspended and asking me to verify."
+        },
+        {
+          "sender": "agent",
+          "text": "That is a confirmed phishing attempt. Do not click the link."
+        }
+      ],
+      "url_flag": {
+        "suspicious_url": true,
+        "risk": "Critical",
+        "reason": "IP literal URL detected"
+      },
+      "email_flag": {
+        "suspicious_email": true,
+        "risk": "High",
+        "reason": "Typosquatted domain"
+      }
+    },
+    "analysis": {
+      "category": "Security Concern",
+      "sentiment": "Negative",
+      "emotion": "Fear",
+      "urgency": "High",
+      "priority": "Critical",
+      "keywords": [
+        "account suspended",
+        "unauthorized access",
+        "verify credentials"
+      ],
+      "customer_request": "The customer is instructed to verify their credentials to restore suspended account access.",
+      "threat_type": "Confirmed Phishing",
+      "social_engineering": true,
+      "technique": [
+        "urgency",
+        "credential_harvesting",
+        "impersonation"
+      ],
+      "risk_level": "Critical",
+      "recommended_action": "Block the sender domain immediately and warn the user not to click the IP-based URL.",
+      "summary": {
+        "issue": "The customer received a phishing email claiming their account was suspended.",
+        "customer_request": "Verify the authenticity of the account suspension email.",
+        "actions_taken": "The agent confirmed the email is a phishing attempt and warned the customer not to click the link.",
+        "current_status": "Resolved",
+        "priority": "High"
+      },
+      "partial_failure": false
+    }
+  },
+  "DEMO-02": {
+    "metadata": {
+      "id": "DEMO-02",
+      "title": "Credential Harvesting - Lookalike Security Alert",
+      "raw_text": "Security Alert: Please update your password and provide your OTP code to maintain access: https://paypal-security-update.xyz",
+      "messages": [
+        {
+          "sender": "customer",
+          "text": "Please check this link asking for my password and OTP."
+        }
+      ],
+      "url_flag": {
+        "suspicious_url": true,
+        "risk": "High",
+        "reason": "Suspicious lookalike domain .xyz"
+      },
+      "email_flag": {
+        "suspicious_email": false,
+        "risk": "Low",
+        "reason": null
+      }
+    },
+    "analysis": {
+      "category": "Security Concern",
+      "sentiment": "Neutral",
+      "emotion": "Fear",
+      "urgency": "High",
+      "priority": "Critical",
+      "keywords": [
+        "Security Alert",
+        "OTP code",
+        "password update"
+      ],
+      "customer_request": "The customer received a suspicious security alert requiring password and OTP update.",
+      "threat_type": "Confirmed Phishing",
+      "social_engineering": true,
+      "technique": [
+        "urgency",
+        "credential_harvesting",
+        "otp_request",
+        "impersonation"
+      ],
+      "risk_level": "Critical",
+      "recommended_action": "Block the sender domain immediately and warn the user not to click the link or share their OTP.",
+      "summary": null,
+      "partial_failure": false
+    }
+  },
+  "DEMO-03": {
+    "metadata": {
+      "id": "DEMO-03",
+      "title": "Resolved Billing Overcharge",
+      "raw_text": "I requested a refund for an overcharge of $40 on invoice #INV-9281.",
+      "messages": [
+        {
+          "sender": "customer",
+          "text": "I requested a refund for an overcharge of $40 on invoice #INV-9281."
+        },
+        {
+          "sender": "agent",
+          "text": "We reviewed the transaction and refunded $40 to your card."
+        },
+        {
+          "sender": "customer",
+          "text": "Thank you, confirmed received!"
+        }
+      ],
+      "url_flag": {
+        "suspicious_url": false,
+        "risk": "Low",
+        "reason": "None"
+      },
+      "email_flag": {
+        "suspicious_email": false,
+        "risk": "Low",
+        "reason": "None"
+      }
+    },
+    "analysis": {
+      "category": "Billing/Payment",
+      "sentiment": "Neutral",
+      "emotion": "Neutral",
+      "urgency": "Medium",
+      "priority": "High",
+      "keywords": [
+        "refund",
+        "overcharge",
+        "invoice"
+      ],
+      "customer_request": "The customer is requesting a refund for a $40 overcharge on their invoice.",
+      "threat_type": "None",
+      "social_engineering": false,
+      "technique": [],
+      "risk_level": "Low",
+      "recommended_action": "Verify invoice #INV-9281 and process the $40 refund for the customer.",
+      "summary": {
+        "issue": "The customer was overcharged $40 on invoice #INV-9281.",
+        "customer_request": "To receive a refund for the $40 overcharge.",
+        "actions_taken": "Support reviewed the transaction and successfully refunded $40 to the customer's card.",
+        "current_status": "Resolved",
+        "priority": "Medium"
+      },
+      "partial_failure": false
+    }
+  },
+  "DEMO-04": {
+    "metadata": {
+      "id": "DEMO-04",
+      "title": "Unresolved Double Charge",
+      "raw_text": "I was double charged $49.99 on my credit card for this month's subscription. Please issue a refund immediately.",
+      "messages": [
+        {
+          "sender": "customer",
+          "text": "I was charged twice for my subscription this morning."
+        },
+        {
+          "sender": "customer",
+          "text": "Still waiting for someone to help me, my card is blocked."
+        }
+      ],
+      "url_flag": {
+        "suspicious_url": false,
+        "risk": "Low",
+        "reason": "None"
+      },
+      "email_flag": {
+        "suspicious_email": false,
+        "risk": "Low",
+        "reason": "None"
+      }
+    },
+    "analysis": {
+      "category": "Billing/Payment",
+      "sentiment": "Negative",
+      "emotion": "Urgency",
+      "urgency": "High",
+      "priority": "High",
+      "keywords": [
+        "double charged",
+        "subscription",
+        "refund"
+      ],
+      "customer_request": "The customer wants an immediate refund for a double charge on their subscription.",
+      "threat_type": "None",
+      "social_engineering": false,
+      "technique": [],
+      "risk_level": "Low",
+      "recommended_action": "Verify the billing transaction and process a refund of $49.99 for the duplicate charge.",
+      "summary": {
+        "issue": "The customer was charged twice for their subscription, resulting in a blocked credit card.",
+        "customer_request": "To get assistance with the duplicate charge and the blocked card",
+        "actions_taken": "None",
+        "current_status": "Unresolved",
+        "priority": "High"
+      },
+      "partial_failure": false
+    }
+  },
+  "DEMO-05": {
+    "metadata": {
+      "id": "DEMO-05",
+      "title": "Account Lockout & Password Reset",
+      "raw_text": "My account has been locked after 3 failed login attempts. I am not receiving the password reset email.",
+      "messages": [
+        {
+          "sender": "customer",
+          "text": "My account is locked and reset email isn't arriving."
+        },
+        {
+          "sender": "agent",
+          "text": "Let me check your account status and send a manual unlock link."
+        }
+      ],
+      "url_flag": {
+        "suspicious_url": false,
+        "risk": "Low",
+        "reason": "None"
+      },
+      "email_flag": {
+        "suspicious_email": false,
+        "risk": "Low",
+        "reason": "None"
+      }
+    },
+    "analysis": {
+      "category": "Account/Login",
+      "sentiment": "Negative",
+      "emotion": "Frustration",
+      "urgency": "High",
+      "priority": "High",
+      "keywords": [
+        "account locked",
+        "password reset",
+        "failed login"
+      ],
+      "customer_request": "The customer wants to unlock their account and receive a password reset email.",
+      "threat_type": "None",
+      "social_engineering": false,
+      "technique": [],
+      "risk_level": "Low",
+      "recommended_action": "Verify the customer's identity through standard support channels and manually trigger a password reset.",
+      "summary": {
+        "issue": "The customer's account is locked and they are not receiving the automated password reset email.",
+        "customer_request": "Unlock the account and regain access.",
+        "actions_taken": "The agent checked the account status and initiated a manual unlock link.",
+        "current_status": "Pending",
+        "priority": "Medium"
+      },
+      "partial_failure": false
+    }
+  },
+  "DEMO-06": {
+    "metadata": {
+      "id": "DEMO-06",
+      "title": "Delivery Package Missing",
+      "raw_text": "Tracking number TRK-99281 shows package delivered yesterday, but nothing arrived at my address. Please help locate it.",
+      "messages": [
+        {
+          "sender": "customer",
+          "text": "Tracking says delivered yesterday, but porch is empty."
+        },
+        {
+          "sender": "agent",
+          "text": "We opened an investigation with the courier."
+        }
+      ],
+      "url_flag": {
+        "suspicious_url": false,
+        "risk": "Low",
+        "reason": "None"
+      },
+      "email_flag": {
+        "suspicious_email": false,
+        "risk": "Low",
+        "reason": "None"
+      }
+    },
+    "analysis": {
+      "category": "Delivery/Shipping",
+      "sentiment": "Negative",
+      "emotion": "Frustration",
+      "urgency": "Medium",
+      "priority": "Medium",
+      "keywords": [
+        "tracking number",
+        "delivered yesterday",
+        "nothing arrived"
+      ],
+      "customer_request": "Locate the missing package that was marked as delivered.",
+      "threat_type": "None",
+      "social_engineering": false,
+      "technique": [],
+      "risk_level": "Low",
+      "recommended_action": "Check the delivery status with the courier and assist the customer with a missing package investigation.",
+      "summary": {
+        "issue": "The customer's package was marked as delivered by the courier, but it is missing from their porch.",
+        "customer_request": "Locate the missing package or receive a resolution for the undelivered item.",
+        "actions_taken": "Support has opened an investigation with the courier.",
+        "current_status": "Pending",
+        "priority": "Medium"
+      },
+      "partial_failure": false
+    }
+  },
+  "DEMO-07": {
+    "metadata": {
+      "id": "DEMO-07",
+      "title": "Technical 500 Internal Server Error",
+      "raw_text": "The dashboard API returns 500 Internal Server Error when exporting monthly CSV reports. Our analytics pipeline is blocked.",
+      "messages": [
+        {
+          "sender": "customer",
+          "text": "CSV export is throwing 500 server error."
+        },
+        {
+          "sender": "agent",
+          "text": "Engineering is deploying a hotfix."
+        }
+      ],
+      "url_flag": {
+        "suspicious_url": false,
+        "risk": "Low",
+        "reason": "None"
+      },
+      "email_flag": {
+        "suspicious_email": false,
+        "risk": "Low",
+        "reason": "None"
+      }
+    },
+    "analysis": {
+      "category": "Technical Problem",
+      "sentiment": "Negative",
+      "emotion": "Frustration",
+      "urgency": "High",
+      "priority": "High",
+      "keywords": [
+        "dashboard API",
+        "500 Internal Server Error",
+        "analytics pipeline"
+      ],
+      "customer_request": "The customer wants to resolve the 500 Internal Server Error on the dashboard API to unblock their analytics pipeline.",
+      "threat_type": "None",
+      "social_engineering": false,
+      "technique": [],
+      "risk_level": "Low",
+      "recommended_action": "Route the ticket to technical support to investigate the API 500 error during CSV exports.",
+      "summary": {
+        "issue": "The CSV export feature is currently failing and returning a 500 server error.",
+        "customer_request": "To be able to successfully export data to a CSV file without errors.",
+        "actions_taken": "Support informed the customer that engineering is deploying a hotfix.",
+        "current_status": "Pending",
+        "priority": "High"
+      },
+      "partial_failure": false
+    }
+  },
+  "DEMO-08": {
+    "metadata": {
+      "id": "DEMO-08",
+      "title": "Critical Compromised Admin Session",
+      "raw_text": "Unauthorized login detected from an unknown IP address in Russia on our admin account. Please revoke all active sessions immediately.",
+      "messages": [
+        {
+          "sender": "customer",
+          "text": "Emergency: unauthorized login from Russia on our admin profile!"
+        },
+        {
+          "sender": "agent",
+          "text": "Security SOC revoked all sessions and rotated API keys."
+        }
+      ],
+      "url_flag": {
+        "suspicious_url": false,
+        "risk": "Low",
+        "reason": "None"
+      },
+      "email_flag": {
+        "suspicious_email": false,
+        "risk": "Low",
+        "reason": "None"
+      }
+    },
+    "analysis": {
+      "category": "Security Concern",
+      "sentiment": "Negative",
+      "emotion": "Fear",
+      "urgency": "High",
+      "priority": "Critical",
+      "keywords": [
+        "Unauthorized login",
+        "admin account",
+        "revoke sessions"
+      ],
+      "customer_request": "The customer wants to revoke all active sessions immediately due to an unauthorized login.",
+      "threat_type": "Social Engineering",
+      "social_engineering": true,
+      "technique": [
+        "urgency",
+        "impersonation"
+      ],
+      "risk_level": "High",
+      "recommended_action": "Verify the identity of the user through out-of-band communication before taking administrative action on sessions.",
+      "summary": {
+        "issue": "An unauthorized admin login from Russia compromised the account.",
+        "customer_request": "Immediate assistance regarding a security breach.",
+        "actions_taken": "Security SOC revoked all sessions and rotated API keys.",
+        "current_status": "Resolved",
+        "priority": "Critical"
+      },
+      "partial_failure": false
+    }
+  },
+  "DEMO-09": {
+    "metadata": {
+      "id": "DEMO-09",
+      "title": "Single-Message Invoice Update (Zero-Summary Case)",
+      "raw_text": "Can you please update our company billing address and tax ID on our latest invoice #INV-2026-881?",
+      "messages": [
+        "Customer: Can you please update our company billing address and tax ID on our latest invoice #INV-2026-881?"
+      ],
+      "url_flag": {
+        "suspicious_url": false,
+        "risk": "Low",
+        "reason": "None"
+      },
+      "email_flag": {
+        "suspicious_email": false,
+        "risk": "Low",
+        "reason": "None"
+      }
+    },
+    "analysis": {
+      "category": "Billing/Payment",
+      "sentiment": "Neutral",
+      "emotion": "Neutral",
+      "urgency": "Low",
+      "priority": "Medium",
+      "keywords": [
+        "billing address",
+        "tax ID",
+        "invoice"
+      ],
+      "customer_request": "The customer wants to update their company billing address and tax ID on the latest invoice.",
+      "threat_type": "None",
+      "social_engineering": false,
+      "technique": [],
+      "risk_level": "Low",
+      "recommended_action": "Verify the customer's identity through standard internal authentication protocols before updating the billing details and tax ID on the invoice.",
+      "summary": null,
+      "partial_failure": false
+    }
+  }
+}
