@@ -43,7 +43,3 @@ frontend/vite.log
 Thumbs.db
 .vscode/
 .idea/
-
-backend/.env
-
-backend/.env

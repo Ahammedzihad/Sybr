@@ -60,8 +60,9 @@ def test_unauthorized_when_auth_enabled(monkeypatch):
     assert "Authentication credentials were not provided" in res.json()["detail"]
 
 
-def test_signup_enabled_and_success():
+def test_signup_enabled_and_success(monkeypatch):
     """Verify public signup is enabled and creates an account."""
+    monkeypatch.setattr(settings, "ENABLE_SIGNUP", True)
     res = client.post("/auth/signup", json={"email": "newuser@sybr.local", "password": "password123", "display_name": "New User"})
     assert res.status_code == 200
     assert "created successfully" in res.json()["message"] or "Account" in res.json()["message"]
