@@ -11,14 +11,29 @@ import {
   WifiOff,
   ChevronRight,
   ChevronsUpDown,
-  X
+  X,
+  Bot,
+  LogOut,
+  User,
+  Users,
+  ShieldAlert,
+  Sliders
 } from 'lucide-react';
-import { isOfflineMode, setOfflineMode, fetchHealth } from '../api';
+import { isOfflineMode, setOfflineMode, fetchHealth, getCurrentUser, logout, isAdmin, getUserRole } from '../api';
 
 export default function Sidebar({ isOpen, onClose }) {
   const location = useLocation();
   const [offline, setOffline] = useState(isOfflineMode());
   const [backendHealth, setBackendHealth] = useState({ status: 'checking', ai_mode: '...' });
+  const [user, setUser] = useState(getCurrentUser());
+  const admin = isAdmin();
+  const role = getUserRole();
+
+  useEffect(() => {
+    const handleAuth = () => setUser(getCurrentUser());
+    window.addEventListener('auth-state-changed', handleAuth);
+    return () => window.removeEventListener('auth-state-changed', handleAuth);
+  }, []);
 
   useEffect(() => {
     async function check() {
@@ -40,20 +55,40 @@ export default function Sidebar({ isOpen, onClose }) {
     setOfflineMode(next);
   };
 
-  const navLinks = [
+  const handleLogout = async () => {
+    await logout();
+    window.location.href = '/login';
+  };
+
+  // Dedicated Nav Links per role
+  const customerNavLinks = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard, shortcut: '⌘1' },
-    { name: 'Conversations', path: '/conversations', icon: MessageSquareText, shortcut: '⌘2' },
-    { name: 'Live Analyzer', path: '/analyze', icon: Zap, shortcut: '⌘3' },
-    { name: 'Batch Ingestion', path: '/upload', icon: UploadCloud, shortcut: '⌘4' },
-    { name: 'System Telemetry', path: '/health', icon: Activity, shortcut: '⌘5' },
+    { name: 'Live Analyzer', path: '/analyze', icon: Zap, shortcut: '⌘2' },
+    { name: 'My Conversations', path: '/conversations', icon: MessageSquareText, shortcut: '⌘3' },
+    { name: 'Copilot Studio', path: '/copilot', icon: Bot, shortcut: '⌘4' },
+    { name: 'CSV Ingestion', path: '/upload', icon: UploadCloud, shortcut: '⌘5' },
+    { name: 'My Account', path: '/account', icon: User, shortcut: '⌘6' },
   ];
 
+  const adminNavLinks = [
+    { name: 'Admin Overview', path: '/admin', icon: LayoutDashboard, shortcut: '⌘1' },
+    { name: 'User Management', path: '/admin/users', icon: Users, shortcut: '⌘2' },
+    { name: 'All Conversations', path: '/admin/conversations', icon: MessageSquareText, shortcut: '⌘3' },
+    { name: 'Security Audit Log', path: '/admin/audit-logs', icon: ShieldAlert, shortcut: '⌘4' },
+    { name: 'System Telemetry', path: '/health', icon: Activity, shortcut: '⌘5' },
+    { name: 'Threat Analyzer', path: '/analyze', icon: Zap, shortcut: '⌘6' },
+    { name: 'Copilot Studio', path: '/copilot', icon: Bot, shortcut: '⌘7' },
+    { name: 'My Account', path: '/account', icon: User, shortcut: '⌘8' },
+  ];
+
+  const navLinks = admin ? adminNavLinks : customerNavLinks;
+
   const quickTags = [
-    { name: 'Critical Threats', color: 'bg-rose-500', path: '/conversations?risk=Critical' },
-    { name: 'High Priority', color: 'bg-amber-500', path: '/conversations?priority=High' },
-    { name: 'Pending Followup', color: 'bg-yellow-500', path: '/conversations?status=Unresolved' },
-    { name: 'Resolved Tickets', color: 'bg-emerald-500', path: '/conversations?status=Resolved' },
-    { name: 'Security Alerts', color: 'bg-indigo-500', path: '/conversations?category=Security%20Concern' },
+    { name: 'Critical Threats', color: 'bg-rose-500', path: admin ? '/admin/conversations?risk=Critical' : '/conversations?risk=Critical' },
+    { name: 'High Priority', color: 'bg-amber-500', path: admin ? '/admin/conversations?priority=High' : '/conversations?priority=High' },
+    { name: 'Pending Followup', color: 'bg-yellow-500', path: admin ? '/admin/conversations?status=Unresolved' : '/conversations?status=Unresolved' },
+    { name: 'Resolved Tickets', color: 'bg-emerald-500', path: admin ? '/admin/conversations?status=Resolved' : '/conversations?status=Resolved' },
+    { name: 'Security Alerts', color: 'bg-indigo-500', path: admin ? '/admin/conversations?category=Security%20Concern' : '/conversations?category=Security%20Concern' },
   ];
 
   return (
@@ -93,7 +128,7 @@ export default function Sidebar({ isOpen, onClose }) {
                   Sybr Security
                 </span>
                 <span className="text-[10px] text-neutral-500 font-mono truncate leading-tight">
-                  enterprise-v2
+                  {admin ? 'admin-workstation' : 'customer-portal'}
                 </span>
               </div>
             </Link>
@@ -111,8 +146,11 @@ export default function Sidebar({ isOpen, onClose }) {
           {/* Navigation Items */}
           <div className="p-3 space-y-4">
             <div>
-              <div className="px-2 mb-1.5 text-[10px] font-semibold text-neutral-400 uppercase tracking-wider">
-                Platform
+              <div className="px-2 mb-1.5 flex items-center justify-between text-[10px] font-semibold text-neutral-400 uppercase tracking-wider">
+                <span>{admin ? 'Admin Operations' : 'Customer Workspace'}</span>
+                <span className={`px-1 rounded text-[8px] font-bold uppercase tracking-wider ${admin ? 'bg-indigo-100 text-indigo-800' : 'bg-neutral-200/80 text-neutral-700'}`}>
+                  {role}
+                </span>
               </div>
               <nav className="space-y-0.5">
                 {navLinks.map((item) => {
@@ -196,6 +234,33 @@ export default function Sidebar({ isOpen, onClose }) {
             {offline ? <WifiOff className="w-3.5 h-3.5 text-amber-700" /> : <Wifi className="w-3.5 h-3.5 text-emerald-700" />}
             <span>{offline ? 'Mode: Offline Cache' : 'Mode: Live Online'}</span>
           </button>
+
+          {/* User Account / Logout */}
+          {user && (
+            <div className="pt-2 border-t border-neutral-200/60 flex items-center justify-between gap-2 text-xs">
+              <Link to="/account" onClick={onClose} className="flex items-center gap-2 min-w-0 flex-1 hover:opacity-80 transition group">
+                <div className={`w-6 h-6 rounded-full text-white flex items-center justify-center text-[10px] font-bold shrink-0 ${admin ? 'bg-indigo-600' : 'bg-neutral-900'}`}>
+                  {user.email ? user.email[0].toUpperCase() : 'U'}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] font-semibold text-neutral-800 truncate group-hover:text-neutral-900">
+                    {user.email || 'Current User'}
+                  </div>
+                  <div className="text-[9px] text-neutral-400 font-mono leading-none capitalize">
+                    {role} • {user.is_demo ? 'Demo' : 'Auth'}
+                  </div>
+                </div>
+              </Link>
+              <button
+                onClick={handleLogout}
+                title="Log out of session"
+                aria-label="Log out"
+                className="p-1 rounded text-neutral-400 hover:text-rose-600 hover:bg-rose-50 transition shrink-0"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
         </div>
 
       </aside>

@@ -26,6 +26,7 @@ class AnalyzeRequest(BaseModel):
     emails: Optional[List[str]] = Field(default=None, description="Explicit emails if available")
     attachments: Optional[List[str]] = Field(default=None, description="Attachment filenames")
     source: Optional[str] = Field(default="real", description="Data source: real | synthetic")
+    user_id: Optional[str] = Field(default=None, description="Owner user ID for multi-tenant isolation")
 
 
 # ---------------------------------------------------------------------------
@@ -125,7 +126,35 @@ class ConversationRecord(BaseModel):
     # Optional metadata for persistence/display
     source: Optional[str] = "real"
     raw_text_masked: Optional[str] = None
+    original_text: Optional[str] = None
     messages: Optional[List[Message]] = None
+    user_id: Optional[str] = None
+
+    # Operational lifecycle & workflow (Admin Intelligence Portal)
+    processing_status: str = "AI Analyzed"
+    assigned_to: Optional[str] = None
+    assigned_at: Optional[str] = None
+    reviewed_by: Optional[str] = None
+    reviewed_at: Optional[str] = None
+    escalated_at: Optional[str] = None
+    resolved_at: Optional[str] = None
+
+    # AI Confidence, Explainability & Signals
+    confidence: Dict[str, Any] = Field(default_factory=dict)
+    ai_explanation: Dict[str, Any] = Field(default_factory=dict)
+    needs_human_review: bool = False
+    review_reason: Optional[str] = None
+
+    # Human Review & Manual Correction Tracking
+    is_human_reviewed: bool = False
+    human_overrides: Optional[Dict[str, Any]] = None
+
+    # Admin Internal Notes (strictly admin-only, never sent to customer)
+    internal_notes: List[Dict[str, Any]] = Field(default_factory=list)
+
+    # AI Recommended Response Draft (advisory draft for support operators)
+    draft_response: Optional[str] = None
+
 
 
 # ---------------------------------------------------------------------------
@@ -232,3 +261,213 @@ class EvaluationMetrics(BaseModel):
     false_positive_rate: float
     avg_latency_ms: float
     ai_mode: str
+
+
+# ---------------------------------------------------------------------------
+# Multimodal AI Copilot Schemas
+# ---------------------------------------------------------------------------
+
+class IssueDiagnosisAndHelp(BaseModel):
+    session_id: str
+    created_at: str
+    issue_title: str
+    category: str
+    severity: Literal["Low", "Medium", "High", "Critical"] = "Medium"
+    root_cause: str
+    visual_findings: List[str] = Field(default_factory=list)
+    is_threat: bool = False
+    threat_details: Optional[str] = None
+    troubleshooting_steps: List[str] = Field(default_factory=list)
+    suggested_response: str
+    prevention_tip: str
+    image_attached: bool = False
+    image_name: Optional[str] = None
+    processing_ms: int = 0
+    ai_mode: str = "fallback"
+    raw_message: Optional[str] = None
+
+
+class CopilotDiagnoseRequest(BaseModel):
+    message: Optional[str] = None
+    image_data: Optional[str] = None
+    image_name: Optional[str] = None
+    channel: Optional[str] = "chat"
+
+
+# ---------------------------------------------------------------------------
+# Section 11 & RBAC: Authentication, Roles, Profiles & Audit Schemas
+# ---------------------------------------------------------------------------
+
+class UserProfile(BaseModel):
+    id: str
+    email: str
+    display_name: Optional[str] = ""
+    role: Literal["customer", "admin"] = "customer"
+    status: Literal["active", "disabled"] = "active"
+    is_demo: bool = False
+    created_at: Optional[str] = None
+
+
+class UserRoleUpdateRequest(BaseModel):
+    role: Literal["customer", "admin"]
+
+
+class AuditLogEntry(BaseModel):
+    id: str
+    actor_user_id: str
+    actor_email: str = ""
+    action: str
+    target_resource_id: str = ""
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
+class AuthLoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class AuthLoginResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserProfile
+    is_demo: bool = False
+    message: Optional[str] = None
+
+
+class AuthSignupRequest(BaseModel):
+    email: str
+    password: str
+    display_name: Optional[str] = ""
+
+
+class AuthResetPasswordRequest(BaseModel):
+    email: str
+
+
+class AuthUpdatePasswordRequest(BaseModel):
+    password: str
+
+
+class CustomerDashboardKPIs(BaseModel):
+    total_my_conversations: int = 0
+    my_threats_detected: int = 0
+    my_pending_reviews: int = 0
+    my_resolved_tickets: int = 0
+    recent_activity: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class AdminDashboardKPIs(BaseModel):
+    total_users: int = 0
+    total_customers: int = 0
+    total_admins: int = 0
+    total_platform_conversations: int = 0
+    total_platform_threats: int = 0
+    high_risk_threats: int = 0
+    needs_review_count: int = 0
+    unresolved_count: int = 0
+    ai_status: Dict[str, Any] = Field(default_factory=dict)
+    database_status: Dict[str, Any] = Field(default_factory=dict)
+    recent_audit_logs: List[AuditLogEntry] = Field(default_factory=list)
+    needs_attention: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Admin Intelligence Portal: Workflow, Review, Analytics & Observability
+# ---------------------------------------------------------------------------
+
+class AdminReviewCorrectionRequest(BaseModel):
+    category: Optional[str] = None
+    issue_label: Optional[str] = None
+    priority: Optional[str] = None
+    risk_level: Optional[str] = None
+    resolution_status: Optional[str] = None
+    reason: Optional[str] = "Manual administrative review & calibration"
+
+
+class AdminStatusUpdateRequest(BaseModel):
+    processing_status: Optional[str] = None
+    resolution_status: Optional[str] = None
+    assigned_to: Optional[str] = None
+
+
+class AdminInternalNoteRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=2000, description="Internal note text")
+
+
+class AdminDraftResponseRequest(BaseModel):
+    tone: Optional[str] = "professional"
+    instructions: Optional[str] = None
+
+
+class AdminDraftResponseResponse(BaseModel):
+    draft_response: str
+    recommended_action: str
+    rationale: str
+
+
+class AdminCategoryMetric(BaseModel):
+    category: str
+    count: int
+    percentage: float
+    unresolved_count: int = 0
+    critical_count: int = 0
+    threat_count: int = 0
+
+
+class AdminCategoryAnalyticsResponse(BaseModel):
+    total_conversations: int
+    categories: List[AdminCategoryMetric]
+
+
+class AdminSecurityAnalyticsResponse(BaseModel):
+    total_threats: int
+    critical_count: int
+    high_count: int
+    threat_types: Dict[str, int]
+    techniques: Dict[str, int]
+    top_domains: List[Dict[str, Any]]
+    top_senders: List[Dict[str, Any]]
+    top_attachments: List[Dict[str, Any]]
+
+
+class AdminAIPerformanceResponse(BaseModel):
+    total_analyzed: int
+    gemini_count: int
+    fallback_count: int
+    fallback_rate: float
+    avg_processing_ms: int
+    human_corrections_count: int
+    human_correction_rate: float
+    review_queue_count: int
+    model_name: str = "gemini-2.5-flash"
+    prompt_injection_signals_caught: int = 0
+
+
+class CustomerOverviewItem(BaseModel):
+    customer_id: str
+    email: str
+    display_name: str
+    conversation_count: int
+    unresolved_count: int
+    critical_count: int
+    last_activity: str
+
+
+class CustomerHistoryResponse(BaseModel):
+    customer_id: str
+    email: str
+    display_name: str
+    total_conversations: int
+    conversations: List[ConversationRecord]
+
+
+class AdminInboxResponse(BaseModel):
+    items: List[ConversationRecord]
+    total: int
+    page: int
+    limit: int
+    total_pages: int
+    facets: Dict[str, Any] = Field(default_factory=dict)
+
+

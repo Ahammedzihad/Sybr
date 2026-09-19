@@ -144,3 +144,89 @@ def test_golden_case_7_twenty_five_message_thread():
     assert record.summary.current_status != ""
     assert record.summary.priority != ""
     assert len(record.messages) == 25
+
+
+def test_readme_golden_case_1_routine_complaint():
+    """Case 1: Routine customer complaint (legitimate)."""
+    conv = {
+        "text": "Hello, my order #48291 arrived with the wrong size shirt. Can I get an exchange?",
+        "channel": "chat"
+    }
+    rec = process_conversation(conv, persist=False)
+    assert rec.security.threat_detected is False
+    assert rec.security.risk_level == "Low"
+
+
+def test_readme_golden_case_2_spoofed_brand_lookalike():
+    """Case 2: Spoofed brand and lookalike domain (typosquatting)."""
+    conv = {
+        "text": "Please confirm your account login at http://paypa1-security.example/login to restore privileges.",
+        "channel": "email"
+    }
+    rec = process_conversation(conv, persist=False)
+    assert rec.security.suspicious_url is True
+    assert rec.security.threat_detected is True
+    assert any(u.lookalike_of == "paypal" for u in rec.security.urls)
+
+
+def test_readme_golden_case_3_display_name_freemail_mismatch():
+    """Case 3: Display-name brand mismatch / free-mail spoofing."""
+    conv = {
+        "text": "Dear customer, this is PayPal Support. Please reply with your invoice number.",
+        "channel": "email",
+        "emails": [("PayPal Support", "security-desk@gmail.com")]
+    }
+    rec = process_conversation(conv, persist=False)
+    assert rec.security.suspicious_email is True
+    assert rec.security.emails[0].free_mail is True
+
+
+def test_readme_golden_case_4_urgent_suspension_hidden_link():
+    """Case 4: Urgent account suspension with hidden link."""
+    conv = {
+        "text": "URGENT: Your account has been suspended! Restore immediate access here: http://192.168.1.50/reactivate",
+        "channel": "email"
+    }
+    rec = process_conversation(conv, persist=False)
+    assert rec.security.threat_detected is True
+    assert rec.security.suspicious_url is True
+    assert any(u.ip_literal is True for u in rec.security.urls)
+
+
+def test_readme_golden_case_5_dangerous_attachment():
+    """Case 5: Dangerous attachment with double extension."""
+    conv = {
+        "text": "Please check the attached payment proof.",
+        "channel": "email",
+        "attachments": ["supplier_remittance.pdf.exe"]
+    }
+    rec = process_conversation(conv, persist=False)
+    assert rec.security.suspicious_attachment is True
+    assert rec.security.risk_level in ("High", "Critical")
+
+
+def test_readme_golden_case_6_otp_fraud_override():
+    """Case 6: WhatsApp/SMS OTP fraud with rule override."""
+    conv = {
+        "text": "Bank Alert: $500 deducted. If this wasn't you, open http://bank-cancel.top and submit OTP.",
+        "channel": "sms"
+    }
+    rec = process_conversation(conv, persist=False)
+    assert rec.security.threat_detected is True
+    assert rec.security.otp_request is True
+    assert rec.security.risk_level == "Critical"
+
+
+def test_readme_golden_case_7_urgency_false_positive_defense():
+    """Case 7: Legitimate inquiry containing urgency cues (false-positive defense)."""
+    conv = {
+        "text": "URGENT: My flight departs in 2 hours and I haven't received my booking confirmation email! Please help immediately!",
+        "channel": "chat"
+    }
+    rec = process_conversation(conv, persist=False)
+    # Urgency in customer request must NOT trigger Phishing threat or Critical security risk
+    assert rec.security.threat_detected is False
+    assert rec.security.threat_type == "None"
+    assert rec.security.risk_level == "Low"
+    assert rec.priority in ("High", "Critical")  # High support priority is legitimate
+

@@ -6,15 +6,20 @@ import {
   Wifi, 
   WifiOff, 
   Zap,
-  X
+  X,
+  Bot,
+  LogOut
 } from 'lucide-react';
-import { isOfflineMode, setOfflineMode } from '../api';
+import { isOfflineMode, setOfflineMode, getCurrentUser, logout, isAdmin, getUserRole } from '../api';
 
 export default function Navbar({ onToggleSidebar }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [offline, setOffline] = useState(isOfflineMode());
   const [navSearch, setNavSearch] = useState('');
+  const user = getCurrentUser();
+  const admin = isAdmin();
+  const role = getUserRole();
 
   const toggleOffline = () => {
     const next = !offline;
@@ -32,12 +37,19 @@ export default function Navbar({ onToggleSidebar }) {
 
   const getBreadcrumbTitle = () => {
     const p = location.pathname;
-    if (p === '/') return 'Dashboard';
+    if (p === '/') return admin ? 'Admin Overview' : 'Customer Dashboard';
+    if (p === '/customer') return 'Customer Dashboard';
+    if (p === '/admin') return 'Admin Overview';
+    if (p === '/admin/users') return 'User Management';
+    if (p === '/admin/conversations') return 'Platform Conversations';
+    if (p === '/admin/audit-logs') return 'Security Audit Log';
     if (p.startsWith('/conversations/')) return 'Conversation Inspector';
     if (p === '/conversations') return 'Conversations';
     if (p === '/analyze') return 'Live Analyzer';
-    if (p === '/upload') return 'Batch Ingestion';
+    if (p === '/copilot') return 'Copilot Studio';
+    if (p === '/upload') return 'CSV Ingestion';
     if (p === '/health') return 'System Telemetry';
+    if (p === '/account') return 'Account & Security';
     return 'Workstation';
   };
 
@@ -118,6 +130,35 @@ export default function Navbar({ onToggleSidebar }) {
           <Zap className="w-3.5 h-3.5" />
           <span>New Analysis</span>
         </Link>
+
+        {user && (
+          <div className="flex items-center gap-1.5">
+            <Link
+              to="/account"
+              title={`Logged in as ${user.email} (${role}). Click for account settings.`}
+              className="flex items-center gap-1.5 pl-2 pr-2.5 py-1 rounded-md text-xs font-medium bg-neutral-100 hover:bg-neutral-200/70 text-neutral-800 border border-neutral-200/80 transition group"
+            >
+              <div className={`w-4 h-4 rounded-full text-white flex items-center justify-center text-[9px] font-bold ${admin ? 'bg-indigo-600' : 'bg-neutral-900'}`}>
+                {user.email ? user.email[0].toUpperCase() : 'U'}
+              </div>
+              <span className="hidden lg:inline truncate max-w-[120px]">{user.email}</span>
+              <span className={`px-1 rounded text-[8px] font-bold uppercase tracking-wider ${admin ? 'bg-indigo-100 text-indigo-800' : 'bg-neutral-200 text-neutral-600'}`}>
+                {role}
+              </span>
+            </Link>
+            <button
+              onClick={async () => {
+                await logout();
+                window.location.href = '/login';
+              }}
+              title="Log out"
+              aria-label="Log out"
+              className="p-1.5 rounded-md text-neutral-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100 transition"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
       </div>
 
     </header>

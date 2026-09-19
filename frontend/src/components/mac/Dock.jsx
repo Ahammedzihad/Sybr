@@ -7,7 +7,8 @@ import {
   UploadCloud, 
   Activity,
   Wifi,
-  WifiOff
+  WifiOff,
+  Bot
 } from 'lucide-react';
 import { isOfflineMode, setOfflineMode, fetchDashboard } from '../../api';
 
@@ -62,6 +63,13 @@ export default function Dock() {
       iconColor: 'text-white',
     },
     {
+      name: 'Copilot Studio',
+      path: '/copilot',
+      icon: Bot,
+      color: 'from-[#e056fd] to-[#686de0]',
+      iconColor: 'text-white',
+    },
+    {
       name: 'Batch Ingestion',
       path: '/upload',
       icon: UploadCloud,
@@ -104,6 +112,8 @@ export default function Dock() {
                     ? 'linear-gradient(180deg, #34c759, #248a3d)'
                     : app.name === 'Live Analyzer'
                     ? 'linear-gradient(180deg, #ff9500, #d66c00)'
+                    : app.name === 'Copilot Studio'
+                    ? 'linear-gradient(180deg, #a855f7, #6b21a8)'
                     : app.name === 'Batch Ingestion'
                     ? 'linear-gradient(180deg, #32ade6, #007aff)'
                     : 'linear-gradient(180deg, #af52de, #7928ca)',

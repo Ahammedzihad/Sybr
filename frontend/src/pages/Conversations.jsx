@@ -9,9 +9,21 @@ import {
   MessageSquareText,
   ShieldAlert,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Mail,
+  CheckCircle2,
+  AlertCircle,
+  ExternalLink,
+  X,
+  Inbox
 } from 'lucide-react';
-import { fetchConversations } from '../api';
+import { 
+  fetchConversations, 
+  fetchGmailStatus, 
+  fetchGmailAuthUrl, 
+  syncGmail, 
+  disconnectGmail 
+} from '../api';
 import { PriorityBadge, RiskBadge, EmotionBadge, ResolutionBadge } from '../components/Badges';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
@@ -40,6 +52,66 @@ export default function Conversations() {
   const [risk, setRisk] = useState(searchParams.get('risk') || '');
   const [sentiment, setSentiment] = useState(searchParams.get('sentiment') || '');
   const [status, setStatus] = useState(searchParams.get('status') || '');
+
+  // Gmail Integration State
+  const [showGmailModal, setShowGmailModal] = useState(false);
+  const [gmailStatus, setGmailStatus] = useState(null);
+  const [gmailLoading, setGmailLoading] = useState(false);
+  const [gmailSyncMessage, setGmailSyncMessage] = useState('');
+
+  const openGmailModal = async () => {
+    setShowGmailModal(true);
+    setGmailLoading(true);
+    setGmailSyncMessage('');
+    try {
+      const res = await fetchGmailStatus();
+      setGmailStatus(res);
+    } catch (err) {
+      setGmailStatus({ configured: false, connected: false, message: err.message });
+    } finally {
+      setGmailLoading(false);
+    }
+  };
+
+  const handleSyncGmail = async () => {
+    setGmailLoading(true);
+    setGmailSyncMessage('');
+    try {
+      const res = await syncGmail(10);
+      setGmailSyncMessage(`Successfully synced ${res.synced_count || 0} messages.`);
+      await loadData();
+    } catch (err) {
+      setGmailSyncMessage(`Sync error: ${err.detail || err.message}`);
+    } finally {
+      setGmailLoading(false);
+    }
+  };
+
+  const handleDisconnectGmail = async () => {
+    setGmailLoading(true);
+    try {
+      await disconnectGmail();
+      setGmailStatus({ configured: true, connected: false });
+      setGmailSyncMessage('Gmail disconnected.');
+    } catch (err) {
+      setGmailSyncMessage(`Disconnect failed: ${err.message}`);
+    } finally {
+      setGmailLoading(false);
+    }
+  };
+
+  const handleConnectGmail = async () => {
+    try {
+      const res = await fetchGmailAuthUrl();
+      if (res?.auth_url) {
+        window.open(res.auth_url, '_blank');
+      } else {
+        setGmailSyncMessage(res?.message || 'Google OAuth credentials missing.');
+      }
+    } catch (err) {
+      setGmailSyncMessage(err.message);
+    }
+  };
 
   // Synchronize state if URL query params change (e.g. from sidebar tag click)
   useEffect(() => {
@@ -123,6 +195,14 @@ export default function Conversations() {
           </p>
         </div>
         <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={openGmailModal}
+            icon={Mail}
+          >
+            Gmail Inbox
+          </Button>
           <Button
             variant="secondary"
             size="sm"
@@ -390,6 +470,143 @@ export default function Conversations() {
           </Button>
         </div>
       </div>
+
+      {/* Gmail Integration Modal */}
+      {showGmailModal && (
+        <div className="fixed inset-0 bg-neutral-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl border border-neutral-200/80 shadow-2xl max-w-lg w-full overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-4 border-b border-neutral-100 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-neutral-100 flex items-center justify-center text-neutral-800">
+                  <Mail className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-neutral-900">Gmail Inbox Integration</h3>
+                  <p className="text-[11px] text-neutral-500">Sync and analyze support emails in real-time</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowGmailModal(false)}
+                className="p-1 rounded-md text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 space-y-4 text-xs">
+              {gmailLoading ? (
+                <div className="py-8 flex flex-col items-center justify-center gap-2 text-neutral-500">
+                  <RefreshCw className="w-5 h-5 animate-spin" />
+                  <span>Checking Gmail status...</span>
+                </div>
+              ) : gmailStatus?.configured ? (
+                /* Configured State */
+                <div className="space-y-4">
+                  {gmailStatus.connected ? (
+                    <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200/80 text-emerald-900 flex items-start gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <div className="font-semibold text-xs">Connected to Gmail</div>
+                        <div className="text-[11px] text-emerald-700 mt-0.5">
+                          Account: {gmailStatus.email || 'Authenticated User'}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-900 flex items-start gap-2.5">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <div className="font-semibold text-xs">Gmail Configured — Not Connected</div>
+                        <div className="text-[11px] text-amber-700 mt-0.5">
+                          Grant read-only access to analyze inbox messages with Sybr intelligence.
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    {gmailStatus.connected ? (
+                      <>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={handleSyncGmail}
+                          loading={gmailLoading}
+                          icon={Inbox}
+                        >
+                          Sync & Analyze Inbox
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleDisconnectGmail}
+                          loading={gmailLoading}
+                        >
+                          Disconnect
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={handleConnectGmail}
+                        icon={ExternalLink}
+                      >
+                        Connect Google Account
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* Unconfigured State */
+                <div className="space-y-3">
+                  <div className="p-3.5 rounded-xl bg-neutral-50 border border-neutral-200/80 text-neutral-800 space-y-2">
+                    <div className="flex items-center gap-2 font-semibold text-neutral-900">
+                      <AlertCircle className="w-4 h-4 text-neutral-500" />
+                      <span>Gmail Integration Not Configured</span>
+                    </div>
+                    <p className="text-[11px] text-neutral-600 leading-relaxed">
+                      Google OAuth credentials are not configured in the backend environment. 
+                      To connect your real inbox, provide the following environment variables:
+                    </p>
+                    <div className="p-2.5 rounded-lg bg-white border border-neutral-200 font-mono text-[10px] text-neutral-700 space-y-1">
+                      <div>GOOGLE_CLIENT_ID=&lt;your_client_id&gt;</div>
+                      <div>GOOGLE_CLIENT_SECRET=&lt;your_client_secret&gt;</div>
+                      <div>GOOGLE_REDIRECT_URI=http://localhost:8000/gmail/callback</div>
+                    </div>
+                    <p className="text-[11px] text-neutral-500">
+                      Scope: <code className="font-mono text-neutral-700 bg-neutral-100 px-1 py-0.5 rounded">https://www.googleapis.com/auth/gmail.readonly</code> (Strictly read-only).
+                    </p>
+                  </div>
+
+                  <div className="text-[11px] text-neutral-500">
+                    You can still use the <strong>Live Analyzer</strong> or <strong>Batch Ingestion (CSV)</strong> to test any email threads or attack scenarios.
+                  </div>
+                </div>
+              )}
+
+              {gmailSyncMessage && (
+                <div className="p-2.5 rounded-lg bg-neutral-100 border border-neutral-200 text-neutral-800 text-[11px] font-medium">
+                  {gmailSyncMessage}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-3.5 bg-neutral-50 border-t border-neutral-100 flex justify-end">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowGmailModal(false)}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

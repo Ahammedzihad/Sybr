@@ -83,7 +83,28 @@ class Settings:
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "").strip()
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "").strip()
-    SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+    SUPABASE_SERVICE_ROLE_KEY: str = (
+        os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        or os.getenv("SUPABASE_SECRET_KEY")
+        or os.getenv("SUPABASE_SERVICE_KEY")
+        or ""
+    ).strip()
+    SUPABASE_ANON_KEY: str = (
+        os.getenv("SUPABASE_ANON_KEY")
+        or os.getenv("VITE_SUPABASE_ANON_KEY")
+        or ""
+    ).strip()
+
+    # Feature Flags: ENABLE_SIGNUP and ENABLE_PASSWORD_RESET are enabled by default
+    ENABLE_AUTH: bool = os.getenv("ENABLE_AUTH", "false").lower() == "true"
+    ENABLE_SIGNUP: bool = os.getenv("ENABLE_SIGNUP", "true").lower() == "true"
+    ENABLE_PASSWORD_RESET: bool = os.getenv("ENABLE_PASSWORD_RESET", "true").lower() == "true"
+
+    # Gmail Integration Settings
+    GMAIL_CLIENT_ID: str = os.getenv("GMAIL_CLIENT_ID", "").strip()
+    GMAIL_CLIENT_SECRET: str = os.getenv("GMAIL_CLIENT_SECRET", "").strip()
+    GMAIL_REDIRECT_URI: str = os.getenv("GMAIL_REDIRECT_URI", "http://localhost:8000/gmail/callback").strip()
+
     ORG_DOMAINS: List[str] = [
         d.strip().lower()
         for d in os.getenv("ORG_DOMAINS", "mycompany.com,support.mycompany.com").split(",")

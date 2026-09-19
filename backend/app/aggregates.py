@@ -23,11 +23,11 @@ from app.pipeline import process_conversation
 EVAL_DATASET_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data", "labeled_eval.json")
 
 
-def compute_dashboard_data() -> DashboardResponse:
+def compute_dashboard_data(user_id: Optional[str] = None) -> DashboardResponse:
     """
-    Computes real-time KPI metrics, distributions, and trends across all conversations.
+    Computes real-time KPI metrics, distributions, and trends across conversations.
     """
-    conversations = get_all_conversations()
+    conversations = get_all_conversations(user_id=user_id)
     total = len(conversations)
 
     if total == 0:
@@ -128,11 +128,11 @@ def compute_dashboard_data() -> DashboardResponse:
     )
 
 
-def compute_ranked_issues(days: Optional[int] = None) -> IssueFrequencyResponse:
+def compute_ranked_issues(days: Optional[int] = None, user_id: Optional[str] = None) -> IssueFrequencyResponse:
     """
     F5: Returns ranked table of canonical issue labels by frequency.
     """
-    conversations = get_all_conversations()
+    conversations = get_all_conversations(user_id=user_id)
     if days:
         cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
         conversations = [c for c in conversations if c.created_at >= cutoff]
@@ -150,11 +150,11 @@ def compute_ranked_issues(days: Optional[int] = None) -> IssueFrequencyResponse:
     return IssueFrequencyResponse(total_conversations=total, issues=ranked)
 
 
-def compute_trends(bucket: str = "day") -> List[Dict[str, Any]]:
+def compute_trends(bucket: str = "day", user_id: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     E5: Aggregates conversations into temporal buckets (day, week, month).
     """
-    conversations = get_all_conversations()
+    conversations = get_all_conversations(user_id=user_id)
     groups: Dict[str, Dict[str, int]] = defaultdict(lambda: {"total": 0, "complaints": 0, "threats": 0, "unresolved": 0})
 
     for c in conversations:

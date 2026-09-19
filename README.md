@@ -148,10 +148,17 @@ Open your browser at:
 ### `backend/.env`
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `GEMINI_API_KEY` | No | `""` | Google Gemini API key. If empty, local fallback is used. |
+| `GEMINI_API_KEY` | No | `""` | Google Gemini API key. If empty or rate-limited (429), rule-based fallback is used. |
 | `GEMINI_MODEL` | No | `gemini-2.5-flash` | Gemini model variant (`gemini-2.5-flash`, `gemini-1.5-pro`). |
 | `SUPABASE_URL` | No | `""` | Supabase Postgres URL. Falls back to SQLite if omitted. |
-| `SUPABASE_SERVICE_ROLE_KEY` | No | `""` | Supabase service key for authenticated DB queries. |
+| `SUPABASE_SERVICE_ROLE_KEY` | No | `""` | Server-side secret/service role key (prefix `eyJ...` or `sb_secret_...`). NEVER use `sb_publishable_...`. |
+| `SUPABASE_ANON_KEY` | No | `""` | Public/anon key for Supabase Auth client initialization. |
+| `ENABLE_AUTH` | No | `false` | When true, enforces token authentication. When false, runs Demo Mode. |
+| `ENABLE_SIGNUP` | No | `false` | Feature flag gating self-service user signup. |
+| `ENABLE_PASSWORD_RESET` | No | `false` | Feature flag gating self-service password reset. |
+| `GMAIL_CLIENT_ID` | No | `""` | Google Cloud OAuth 2.0 client ID for Gmail inbox sync. |
+| `GMAIL_CLIENT_SECRET` | No | `""` | Google Cloud OAuth 2.0 client secret. Handled securely server-side. |
+| `GMAIL_REDIRECT_URI` | No | `http://localhost:8000/gmail/callback` | OAuth redirect callback URI. |
 | `ORG_DOMAINS` | No | `mycompany.com` | Comma-separated list of legitimate organizational domains. |
 | `PORT` | No | `8000` | Backend server port. |
 | `HOST` | No | `0.0.0.0` | Backend binding host. |
@@ -162,6 +169,8 @@ Open your browser at:
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `VITE_API_URL` | No | `http://localhost:8000` | Address of the running backend API. |
+| `VITE_SUPABASE_URL` | No | `""` | Public Supabase URL (client-side auth). |
+| `VITE_SUPABASE_ANON_KEY` | No | `""` | Public Supabase Anon key (NEVER service role key). |
 
 ---
 
@@ -175,7 +184,7 @@ The repository includes pre-built synthetic and labeled evaluation datasets insi
 ### Seed Database
 Populate your SQLite/Supabase database with over 60 analyzed conversations:
 ```bash
-venv/bin/python backend/scripts/seed_synthetic_phishing.py
+python backend/scripts/seed_synthetic_phishing.py
 ```
 
 ### Run Evaluation Benchmarks
@@ -185,13 +194,15 @@ Verify that the system meets enterprise detection thresholds (**Recall ≥ 95%**
 curl http://localhost:8000/eval
 
 # Or run the automated test suite:
-PYTHONPATH=backend pytest backend/tests/test_aggregates.py -k test_evaluation_endpoint
+python -m pytest backend/tests/test_aggregates.py -k test_eval_benchmark_metrics
 ```
 
-### Run All 34 Automated Tests
+### Run Full Backend Regression Suite (73 Automated Tests)
+The entire test suite runs 100% locally with zero dependencies on live Gemini quota, live Supabase, or live Gmail:
 ```bash
-PYTHONPATH=backend pytest backend/tests/
+python -m pytest backend/tests -v
 ```
+*Current test suite status: **73 passed**, 2 library deprecation warnings, **0 failures** in ~31s.*
 
 ---
 
@@ -201,31 +212,87 @@ For conference presentations, offline hackathon booths, or unreliable venue Wi-F
 
 1. **Generate Demo Cache**:
    ```bash
-   venv/bin/python backend/scripts/seed_local.py
+   python backend/scripts/seed_local.py
    ```
    This exports all analyzed conversations and aggregated KPIs directly to `frontend/public/demo-cache.json`.
 
 2. **Toggle Offline Mode in Dashboard**:
-   Click the **"Offline Demo Mode"** toggle in the top-right header of the React app. The application immediately switches to reading the local JSON cache, enabling full interactive filtering, conversation drill-downs, charts, and metrics with zero latency and zero server calls.
+   Click the **"Mode: Offline Cache"** toggle in the sidebar or macOS Dock. The application immediately switches to reading the local JSON cache, enabling full interactive filtering, conversation drill-downs, charts, and metrics with zero latency and zero server calls.
+
+---
+
+## Role-Based Access Control (RBAC) & Portals
+
+SybrV2 features a complete Role-Based Access Control model with dedicated portals:
+
+### 1. Customer Portal (`/customer` or `/`)
+- **Dashboard**: Customer-scoped metrics (personal conversation count, recent analyses, security alert summary).
+- **Live Analyzer**: Analyze new support tickets, emails, and conversations, automatically bound to customer ownership.
+- **My Conversations**: Isolated conversation records — Customer A cannot view, inspect, or delete Customer B's records (IDOR protection).
+- **Copilot Studio**: AI-guided issue diagnosis and troubleshooting checklists scoped to customer tickets.
+- **My Account**: Profile inspection, role display (read-only), and session management.
+
+### 2. Admin Portal (`/admin`)
+- **Admin Overview**: System-wide telemetry, total active tenants, platform-wide threat detection rate, and real-time security alerts.
+- **User Management (`/admin/users`)**: Directory of all registered users with role promotion/demotion. Includes **Last-Admin Protection** to prevent locking the platform out.
+- **Platform Conversations (`/admin/conversations`)**: Omniscient oversight of all organizational tickets, phishing attempts, and analysis payloads.
+- **Security Audit Logs (`/admin/audit-logs`)**: Immutable event logs capturing role modifications, administrative actions, and security access attempts.
+- **System Telemetry (`/health`)**: Hardware, active database mode, AI provider status, and service health.
 
 ---
 
 ## API Reference
 
-| Method | Endpoint | Description |
+| Group | Method | Endpoint | Authorization | Description |
+|---|---|---|---|---|
+| **System** | `GET` | `/health` | Public | System status, active AI mode (`gemini` vs `fallback`), database type (`supabase` vs `local_sqlite`), version. |
+| **Auth** | `POST` | `/auth/login` | Public | Authenticate with Supabase Auth or transparent Demo Mode fallback. |
+| **Auth** | `GET` | `/auth/me` | Authenticated | Fetch authenticated user profile, role (`customer`/`admin`), and demo status. |
+| **Auth** | `POST` | `/auth/logout` | Authenticated | Revoke session and clear state. |
+| **Auth** | `POST` | `/auth/signup` | Public | Register new customer account (strictly defaults to `customer` role). |
+| **Auth** | `POST` | `/auth/reset-password` | Public | Request password reset email (safe enum-proof response). |
+| **Customer**| `GET` | `/customer/dashboard` | Customer/Admin | Scoped customer KPIs, recent tickets, and security alert summary. |
+| **Admin** | `GET` | `/admin/dashboard` | Admin Only | Platform-level telemetry, tenant counts, and high-risk threat breakdown. |
+| **Admin** | `GET` | `/admin/users` | Admin Only | User directory with identity, role, and creation timestamps. |
+| **Admin** | `PATCH`| `/admin/users/{id}/role` | Admin Only | Promote or demote user roles with Last-Admin lockout protection. |
+| **Admin** | `GET` | `/admin/audit-logs` | Admin Only | Query security audit events and administrative actions. |
+| **Admin** | `GET` | `/admin/conversations` | Admin Only | Global conversation oversight across all platform users. |
+| **Analysis** | `POST` | `/analyze` | Authenticated | Analyze a single customer message or thread synchronously (Call A + Call B + Security Rules). |
+| **Copilot** | `POST` | `/copilot/diagnose` | Authenticated | AI issue diagnosis, screenshot forensics, and actionable resolution checklist. |
+| **Copilot** | `GET` | `/copilot/history` | Authenticated | Retrieve user-scoped Copilot diagnostic sessions. |
+| **Gmail** | `GET` | `/gmail/status` | Public | Check if Gmail OAuth is configured and whether user is connected. |
+| **Gmail** | `GET` | `/gmail/auth-url` | Authenticated | Generate Google OAuth 2.0 authorization URL (`gmail.readonly`). |
+| **Gmail** | `POST` | `/gmail/sync` | Authenticated | Sync and analyze incoming inbox messages with deduplication. |
+| **Gmail** | `POST` | `/gmail/disconnect` | Authenticated | Revoke Gmail access and remove server-side tokens. |
+| **Conversations**| `GET` | `/conversations` | Authenticated | User-isolated list of processed conversations (Admin sees global list). |
+| **Conversations**| `GET` | `/conversations/{id}` | Authenticated | User-isolated conversation detail with IDOR rejection for unauthorized access. |
+| **Conversations**| `POST`| `/conversations/{id}/reanalyze` | Authenticated | Re-run security rules and Gemini intelligence on an existing ticket. |
+| **Conversations**| `DELETE`| `/conversations/{id}` | Authenticated | Remove an owned conversation from the database (or Admin global delete). |
+| **Ingestion** | `POST` | `/upload` | Authenticated | Asynchronously ingest and process CSV/JSON files containing multiple tickets. |
+| **Ingestion** | `GET` | `/jobs/{id}` | Authenticated | Poll background file ingestion and parsing progress. |
+| **Analytics** | `GET` | `/dashboard` | Authenticated | High-level analytics: KPIs, distributions, daily trends. |
+| **Analytics** | `GET` | `/issues` | Authenticated | Ranked frequently-reported issues with percentage breakdown. |
+| **Analytics** | `GET` | `/trends` | Authenticated | Daily volume, complaint rate, and threat detection timeline. |
+| **Evaluation** | `GET` | `/eval` | Public | Run evaluation benchmark against `data/labeled_eval.json` (Recall, Precision, F1, FPR). |
+
+---
+
+## Feature Implementation & Verification Inventory
+
+| Feature Area | Status | Evidence & Implementation Notes |
 |---|---|---|
-| `GET` | `/health` | System status, active AI mode (`live` vs `fallback`), database type. |
-| `POST` | `/analyze` | Analyze a single customer message or thread synchronously. |
-| `POST` | `/upload` | Asynchronously ingest and process CSV/JSON files containing multiple tickets. |
-| `GET` | `/jobs/{id}` | Poll background file ingestion and parsing progress. |
-| `GET` | `/conversations` | Paginated, filterable list of processed conversations (`category`, `risk_level`, `threat_detected`, `is_angry`). |
-| `GET` | `/conversations/{id}` | Complete Section 5 JSON payload for a single conversation. |
-| `POST` | `/conversations/{id}/reanalyze` | Re-run security rules and Gemini intelligence on an existing ticket. |
-| `DELETE` | `/conversations/{id}` | Remove a conversation from the database. |
-| `GET` | `/dashboard` | High-level analytics: KPIs, sentiment/category/risk distributions, daily trends. |
-| `GET` | `/issues` | Ranked frequently-reported issues with percentage breakdown. |
-| `GET` | `/trends` | Daily volume, complaint rate, and threat detection timeline. |
-| `GET` | `/eval` | Run evaluation benchmark against `data/labeled_eval.json` (Recall, Precision, F1, FPR). |
+| **Login & Authentication** | **VERIFIED** | Real Supabase Auth + clearly-labelled DEMO MODE login fallback. Backend JWT verification in `app/auth.py`, session management, `<ProtectedRoute>` in `App.jsx`, user scoping on all routes. 9 automated regression tests passing (`test_auth.py`). |
+| **Dashboard** | **VERIFIED** | macOS-styled executive dashboard with KPI cards, Recharts visualizations (sentiment, risk, issue frequency), live backend integration, and offline JSON demo cache mode. Verified in `Dashboard.jsx`. |
+| **Live Analyzer** | **VERIFIED** | Dual-call intelligence (Call A + Call B) with synchronous rule engine scoring (0–100), 5-point structured summary, explicit AI Engine mode badge (Gemini 2.5 Flash vs Rule-Based Fallback), and 4 quick demo attack presets. Verified in `LiveAnalyzer.jsx`. |
+| **Conversations Inbox** | **VERIFIED** | Paginated table with search by ticket ID/message/indicator, multi-criteria filters, risk badges, and detail drawer. Verified in `Conversations.jsx`. |
+| **Conversation Detail** | **VERIFIED** | Full Section 5 display: support classification, 5-point summary, security technical indicators, explainable reasons, raw JSON viewer, and record deletion. Verified in `ConversationDetail.jsx`. |
+| **Copilot Studio** | **VERIFIED** | AI issue diagnosis, screenshot/image drop & paste (⌘V), forensic findings, step-by-step checklist, and one-click support reply draft. Routes mounted at `/copilot/diagnose` and `/copilot/history`. Verified in `CopilotStudio.jsx` and `test_copilot.py`. |
+| **Batch Ingestion (CSV)** | **VERIFIED** | Async CSV/JSON upload with column alias normalization (`ticket_id`, `message`, `channel`), multi-turn thread grouping, and job polling. Enforces 50MB file size limit. Verified in `Upload.jsx` and `test_pipeline_api.py`. |
+| **System Telemetry & Health** | **VERIFIED** | Real-time `/health` endpoint reporting status, active AI mode (`gemini` vs `fallback`), model, database in use (`supabase` vs `local_sqlite`), and latency metrics. Verified in `SystemHealth.jsx` and `test_health.py`. |
+| **Gemini AI & Fallback** | **VERIFIED** | Structured JSON schema output, in-memory SHA-256 caching, automatic fallback on HTTP 429 / quota limit / network errors. Verified in `gemini_client.py`, `fallback.py`, and `test_gemini_fallback.py`. |
+| **Database Persistence** | **VERIFIED** | Dual persistence in Supabase PostgreSQL + local SQLite fallback with automatic migration for `user_id`. Fixed list fallback root cause. Idempotent DDL in `data/supabase_schema.sql`. Verified in `test_pipeline_api.py`. |
+| **Gmail Inbox Integration** | **VERIFIED** | Google OAuth 2.0 (`gmail.readonly`) URL generation, server-side token encryption/storage in SQLite, inbox sync with message ID deduplication, and "Not Configured" state when env vars absent. Verified in `app/gmail.py` and `test_gmail.py`. |
+| **Deployment Targets** | **VERIFIED** | Render (`render.yaml`) backend blueprint with environment variables and health check; Vercel (`frontend/vercel.json`) frontend static deployment with SPA rewrites. |
 
 ---
 

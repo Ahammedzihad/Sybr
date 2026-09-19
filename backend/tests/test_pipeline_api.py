@@ -98,3 +98,35 @@ def test_conversations_list_and_delete():
     # Verify deleted
     get_again = client.get(f"/conversations/{created_id}")
     assert get_again.status_code == 404
+
+
+def test_conversations_fallback_lifecycle_regression():
+    """Regression test (Phase 2): analyze -> list -> detail -> delete -> verify list updated."""
+    # 1. Analyze
+    ticket_text = "Regression test: cannot change billing currency in profile settings."
+    res = client.post("/analyze", json={"text": ticket_text, "channel": "ticket"})
+    assert res.status_code == 200
+    cid = res.json()["conversation_id"]
+
+    # 2. List
+    list_res = client.get("/conversations?limit=50")
+    assert list_res.status_code == 200
+    items = list_res.json()["items"]
+    assert any(c["conversation_id"] == cid for c in items)
+
+    # 3. Detail
+    detail_res = client.get(f"/conversations/{cid}")
+    assert detail_res.status_code == 200
+    assert detail_res.json()["conversation_id"] == cid
+
+    # 4. Delete
+    del_res = client.delete(f"/conversations/{cid}")
+    assert del_res.status_code == 200
+    assert del_res.json()["status"] == "deleted"
+
+    # 5. Verify list updated
+    after_list = client.get("/conversations?limit=50")
+    assert after_list.status_code == 200
+    after_items = after_list.json()["items"]
+    assert not any(c["conversation_id"] == cid for c in after_items)
+

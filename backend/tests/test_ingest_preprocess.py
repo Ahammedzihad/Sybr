@@ -41,6 +41,36 @@ def test_pii_masking():
     assert "[OTP]" in masked
 
 
+def test_pii_edge_cases_and_preservation():
+    """Verify specific PII formats are masked while legitimate domain context remains intact."""
+    # US and Indian phone numbers
+    us_phone = "Please call back at (415) 555-2671 or +1-800-555-0199."
+    masked_us = mask_pii(us_phone)
+    assert "(415) 555-2671" not in masked_us
+    assert "[PHONE]" in masked_us
+
+    in_phone = "WhatsApp support at +91 9123456780 or 8987654321."
+    masked_in = mask_pii(in_phone)
+    assert "9123456780" not in masked_in
+    assert "8987654321" not in masked_in
+    assert "[PHONE]" in masked_in
+
+    # Verification and security code variants
+    otp_text = "Your verification code is 849201. Never share security code: 3948."
+    masked_otp = mask_pii(otp_text)
+    assert "849201" not in masked_otp
+    assert "3948" not in masked_otp
+    assert "[OTP]" in masked_otp
+
+    # Legitimate non-PII content MUST NOT be removed
+    legit_text = "Order #99210 for iPhone 15 totaling $899.00 purchased on March 14, 2026."
+    masked_legit = mask_pii(legit_text)
+    assert "99210" in masked_legit
+    assert "iPhone 15" in masked_legit
+    assert "899.00" in masked_legit
+    assert "March 14, 2026" in masked_legit
+
+
 def test_text_cleaning_and_contractions():
     raw_text = "<b>Hello!</b> I can't access my account and won't be able to pay."
     expanded = expand_contractions(raw_text)

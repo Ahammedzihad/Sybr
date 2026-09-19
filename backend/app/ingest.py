@@ -237,6 +237,7 @@ def normalize_analyze_request(req: AnalyzeRequest) -> Dict[str, Any]:
 
     return {
         "conversation_id": conv_id,
+        "user_id": req.user_id,
         "channel": req.channel or "chat",
         "created_at": now_str,
         "messages": messages,

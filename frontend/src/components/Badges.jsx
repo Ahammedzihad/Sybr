@@ -131,3 +131,12 @@ export function ResolutionBadge({ status, reason }) {
     </span>
   );
 }
+
+export function CategoryBadge({ category }) {
+  return (
+    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-neutral-100 text-neutral-700 border border-neutral-200/80">
+      {category || 'General Support'}
+    </span>
+  );
+}
+

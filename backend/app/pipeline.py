@@ -73,6 +73,9 @@ def process_conversation(conv_dict: Dict[str, Any], persist: bool = True) -> Con
         source=source,
     )
 
+    if conv_dict.get("user_id"):
+        record.user_id = conv_dict["user_id"]
+
     # 9. Store in Database
     if persist:
         upsert_conversation(record)

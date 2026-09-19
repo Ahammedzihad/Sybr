@@ -72,10 +72,18 @@ def init_copilot_table():
         image_name TEXT,
         processing_ms INTEGER,
         ai_mode TEXT,
-        raw_message TEXT
+        raw_message TEXT,
+        user_id TEXT
     );
     """)
+
+    cursor.execute("PRAGMA table_info(copilot_diagnoses)")
+    cols = [c[1] for c in cursor.fetchall()]
+    if "user_id" not in cols:
+        cursor.execute("ALTER TABLE copilot_diagnoses ADD COLUMN user_id TEXT;")
+
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_copilot_created ON copilot_diagnoses(created_at);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_copilot_user ON copilot_diagnoses(user_id);")
     conn.commit()
     conn.close()
 
@@ -273,8 +281,8 @@ def run_deterministic_copilot_fallback(
     )
 
 
-def save_copilot_diagnosis(diag: IssueDiagnosisAndHelp) -> None:
-    """Persists a diagnosis session into SQLite and mirrors into conversations table."""
+def save_copilot_diagnosis(diag: IssueDiagnosisAndHelp, user_id: Optional[str] = None) -> None:
+    """Persists a diagnosis session into SQLite and mirrors into conversations table with user_id."""
     conn = sqlite3.connect(SQLITE_DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
@@ -282,9 +290,10 @@ def save_copilot_diagnosis(diag: IssueDiagnosisAndHelp) -> None:
         session_id, created_at, issue_title, category, severity, root_cause,
         visual_findings_json, is_threat, threat_details, troubleshooting_steps_json,
         suggested_response, prevention_tip, image_attached, image_name,
-        processing_ms, ai_mode, raw_message
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        processing_ms, ai_mode, raw_message, user_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(session_id) DO UPDATE SET
+        user_id=COALESCE(excluded.user_id, copilot_diagnoses.user_id),
         issue_title=excluded.issue_title,
         category=excluded.category,
         severity=excluded.severity,
@@ -314,6 +323,7 @@ def save_copilot_diagnosis(diag: IssueDiagnosisAndHelp) -> None:
         diag.processing_ms,
         diag.ai_mode,
         diag.raw_message,
+        user_id,
     ))
     conn.commit()
     conn.close()
@@ -321,6 +331,7 @@ def save_copilot_diagnosis(diag: IssueDiagnosisAndHelp) -> None:
     try:
         conv_record = ConversationRecord(
             conversation_id=diag.session_id,
+            user_id=user_id,
             channel="copilot",
             created_at=diag.created_at,
             customer_issue=diag.issue_title,
@@ -374,16 +385,24 @@ def save_copilot_diagnosis(diag: IssueDiagnosisAndHelp) -> None:
         logger.warning(f"Could not mirror diagnosis to conversations table: {e}")
 
 
-def get_recent_copilot_diagnoses(limit: int = 20) -> List[IssueDiagnosisAndHelp]:
-    """Retrieves recent diagnostic sessions from SQLite."""
+def get_recent_copilot_diagnoses(limit: int = 20, user_id: Optional[str] = None) -> List[IssueDiagnosisAndHelp]:
+    """Retrieves recent diagnostic sessions from SQLite scoped by user_id if supplied."""
     conn = sqlite3.connect(SQLITE_DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    cursor.execute("""
-    SELECT * FROM copilot_diagnoses
-    ORDER BY created_at DESC
-    LIMIT ?
-    """, (limit,))
+    if user_id:
+        cursor.execute("""
+        SELECT * FROM copilot_diagnoses
+        WHERE user_id = ? OR user_id IS NULL
+        ORDER BY created_at DESC
+        LIMIT ?
+        """, (user_id, limit))
+    else:
+        cursor.execute("""
+        SELECT * FROM copilot_diagnoses
+        ORDER BY created_at DESC
+        LIMIT ?
+        """, (limit,))
     rows = cursor.fetchall()
     conn.close()
 
@@ -416,10 +435,12 @@ def diagnose_multimodal_issue(
     image_data: Optional[str] = None,
     image_name: Optional[str] = None,
     channel: Optional[str] = "chat",
+    user_id: Optional[str] = None,
 ) -> IssueDiagnosisAndHelp:
     """
     Main entrypoint: executes multimodal diagnosis using Gemini 2.5 Flash
     (or deterministic heuristics fallback).
+
     """
     start_time = time.time()
     has_image = bool(image_data and len(image_data.strip()) > 0)
@@ -437,18 +458,13 @@ def diagnose_multimodal_issue(
             client = genai.Client(api_key=settings.GEMINI_API_KEY)
             contents: List[Any] = [COPILOT_SYSTEM_PROMPT]
 
-            user_text = f"Channel: {channel or 'chat'}
-"
+            user_text = f"Channel: {channel or 'chat'}\n"
             if image_name:
-                user_text += f"Image Filename: {image_name}
-"
+                user_text += f"Image Filename: {image_name}\n"
             if message:
-                user_text += f"User Issue Report:
-{message}
-"
+                user_text += f"User Issue Report:\n{message}\n"
             else:
-                user_text += "User uploaded an image without text description. Please diagnose the issue entirely from the visual evidence.
-"
+                user_text += "User uploaded an image without text description. Please diagnose the issue entirely from the visual evidence.\n"
 
             contents.append(user_text)
 
@@ -489,7 +505,7 @@ def diagnose_multimodal_issue(
                 ai_mode="gemini",
                 raw_message=message,
             )
-            save_copilot_diagnosis(diag)
+            save_copilot_diagnosis(diag, user_id=user_id)
             return diag
 
         except Exception as e:
@@ -498,5 +514,6 @@ def diagnose_multimodal_issue(
     # Deterministic fallback
     diag = run_deterministic_copilot_fallback(message=message, image_name=image_name, has_image=has_image)
     diag.processing_ms = int((time.time() - start_time) * 1000)
-    save_copilot_diagnosis(diag)
+    save_copilot_diagnosis(diag, user_id=user_id)
     return diag
+

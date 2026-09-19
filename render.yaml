@@ -20,7 +20,7 @@ services:
       - key: HOST
         value: 0.0.0.0
       - key: CORS_ORIGINS
-        value: "*"
+        value: "http://localhost:5173,https://sybrv2.vercel.app"
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL
@@ -28,6 +28,16 @@ services:
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: ENABLE_AUTH
+        value: "false"
+      - key: GMAIL_CLIENT_ID
+        sync: false
+      - key: GMAIL_CLIENT_SECRET
+        sync: false
+      - key: GMAIL_REDIRECT_URI
         sync: false
       - key: ORG_DOMAINS
         value: mycompany.com,support.mycompany.com,acme.com

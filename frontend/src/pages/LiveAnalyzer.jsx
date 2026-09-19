@@ -181,7 +181,26 @@ export default function LiveAnalyzer() {
       {result && (
         <div className="space-y-6 animate-fade-in">
           
-          {/* Operational Banner */}
+          {/* Engine Mode & Operational Banner */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Analysis Engine:</span>
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                result.ai_mode === 'gemini'
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                  : 'bg-amber-50 text-amber-800 border-amber-300'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${result.ai_mode === 'gemini' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                {result.ai_mode === 'gemini' ? 'Gemini 2.5 Flash' : 'Rule-Based Fallback (Offline / Quota Fallback)'}
+              </span>
+            </div>
+            {result.processing_ms && (
+              <span className="text-[11px] font-mono text-neutral-400">
+                Latency: {result.processing_ms}ms
+              </span>
+            )}
+          </div>
+
           <div className={`p-4 rounded-2xl border flex items-start gap-3.5 shadow-sm ${
             result.security?.threat_detected
               ? 'bg-[#ff3b30]/10 border-[#ff3b30]/25 text-[#b81414]'
