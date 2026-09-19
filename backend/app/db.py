@@ -158,10 +158,12 @@ def is_supabase_enabled() -> bool:
     """
     Checks if valid Supabase server credentials are configured.
     Detects key types safely: if the service-role key has a publishable prefix
-    (e.g., sb_publishable_...), server-side Supabase is treated as disabled.
+    (e.g., sb_publishable_...) or contains placeholder strings, server-side Supabase is treated as disabled.
     """
     key = settings.SUPABASE_SERVICE_ROLE_KEY
     if not (settings.SUPABASE_URL and key):
+        return False
+    if "your-project-ref" in settings.SUPABASE_URL or "your_supabase" in key or "your-anon-key" in key:
         return False
     if key.startswith("sb_publishable_") or key.startswith("pk."):
         return False

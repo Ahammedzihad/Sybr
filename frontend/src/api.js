@@ -8,43 +8,100 @@ import { createClient } from '@supabase/supabase-js';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '');
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// ---------------------------------------------------------------------------
+// Supabase Client Management (Strictly from Frontend Environment)
+// ---------------------------------------------------------------------------
 
-// Direct client-side Supabase client (only uses public/anon key; never service_role)
-export const supabase = (SUPABASE_URL && SUPABASE_ANON_KEY)
-  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-  : null;
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || '').trim();
+const SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
 
-// Listen to Supabase Auth state changes if configured
-if (supabase) {
-  supabase.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_IN' && session) {
-      try {
-        const res = await fetch(`${API_BASE}/auth/me`, {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-        if (res.ok) {
-          const user = await res.json();
-          setAuthSession(session.access_token, user, false);
-          return;
-        }
-      } catch (err) {
-        // quiet fallback
-      }
-      const u = session.user;
-      setAuthSession(session.access_token, {
-        id: u.id,
-        email: u.email,
-        display_name: u.user_metadata?.display_name || u.email?.split('@')[0],
-        role: u.user_metadata?.role || 'customer',
-        status: 'active',
-      }, false);
-    } else if (event === 'SIGNED_OUT') {
-      clearAuthSession();
-    }
-  });
+export function isSupabaseConfigured() {
+  return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 }
+
+let _supabaseInstance = null;
+let _authListenerAttached = false;
+
+export function getSupabaseClient() {
+  if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+    if (!_supabaseInstance) {
+      _supabaseInstance = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+        },
+      });
+
+      if (!_authListenerAttached) {
+        _authListenerAttached = true;
+        _supabaseInstance.auth.onAuthStateChange(async (event, session) => {
+          if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') && session) {
+            const u = session.user;
+            let userRole = u.user_metadata?.role || u.app_metadata?.role || 'customer';
+
+            // Check public.profiles in Supabase via PostgREST
+            if (_supabaseInstance && userRole !== 'admin') {
+              try {
+                const { data: prof } = await _supabaseInstance
+                  .from('profiles')
+                  .select('role, display_name, status')
+                  .eq('id', u.id)
+                  .maybeSingle();
+                if (prof?.role) {
+                  userRole = prof.role;
+                }
+              } catch {
+                // quiet fallback
+              }
+            }
+
+            // Also check backend /auth/me if available
+            if (API_BASE && !API_BASE.startsWith(window.location.origin)) {
+              try {
+                const res = await fetch(`${API_BASE}/auth/me`, {
+                  headers: { Authorization: `Bearer ${session.access_token}` },
+                });
+                if (res.ok) {
+                  const meData = await res.json();
+                  if (meData?.role) userRole = meData.role;
+                }
+              } catch {
+                // quiet fallback
+              }
+            }
+
+            setAuthSession(session.access_token, {
+              id: u.id,
+              email: u.email,
+              display_name: u.user_metadata?.display_name || u.email?.split('@')[0],
+              role: userRole,
+              status: 'active',
+              is_demo: false,
+            }, false);
+          } else if (event === 'SIGNED_OUT') {
+            clearAuthSession();
+          }
+        });
+      }
+    }
+    return _supabaseInstance;
+  }
+  return null;
+}
+
+// Proxied supabase client preserving backward compatibility and preventing tree-shaking
+export const supabase = new Proxy({}, {
+  get(target, prop) {
+    const client = getSupabaseClient();
+    if (!client) return undefined;
+    const val = client[prop];
+    if (typeof val === 'function') {
+      return val.bind(client);
+    }
+    return val;
+  }
+});
 
 // ---------------------------------------------------------------------------
 // Offline & Auth Token Management
@@ -118,7 +175,12 @@ function getHeaders(extra = {}) {
 async function handleResponse(res) {
   if (res.status === 401) {
     clearAuthSession();
-    throw new Error('Session expired. Please log in again.');
+    throw new Error('Invalid email or password. Please verify your credentials.');
+  }
+  if (res.status === 405) {
+    throw new Error(
+      'Authentication endpoint returned HTTP 405 Method Not Allowed. The frontend is requesting a static URL. Please configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your deployment environment variables, or ensure VITE_API_URL points to the live FastAPI backend.'
+    );
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -137,59 +199,111 @@ async function fetchDemoCache() {
 // ---------------------------------------------------------------------------
 
 export async function login(email, password) {
+  const cleanEmail = email.trim().toLowerCase();
+
   // 1. Supabase Auth if client-side credentials are configured
-  if (supabase) {
-    const { data: sbData, error: sbErr } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
-    if (sbErr) {
-      throw new Error(sbErr.message || 'Invalid email or password.');
+  const client = getSupabaseClient();
+  if (client) {
+    let sbData, sbErr;
+    try {
+      const res = await client.auth.signInWithPassword({
+        email: cleanEmail,
+        password,
+      });
+      sbData = res.data;
+      sbErr = res.error;
+    } catch (err) {
+      // quiet fallback to backend or demo mode
     }
+
+    if (sbErr) {
+      const msg = (sbErr.message || '').toLowerCase();
+      if (msg.includes('email not confirmed')) {
+        throw new Error('Please confirm your email address to continue.');
+      }
+      if (msg.includes('invalid login credentials') || msg.includes('invalid_grant')) {
+        throw new Error('Invalid email or password.');
+      }
+      if (!msg.includes('network') && !msg.includes('fetch')) {
+        throw new Error(sbErr.message || 'Invalid email or password.');
+      }
+    }
+
     if (sbData?.session) {
+      const token = sbData.session.access_token;
+      const u = sbData.user;
+
+      // Retrieve user role from Supabase metadata, public.profiles, or backend /auth/me
+      let userRole = u.user_metadata?.role || u.app_metadata?.role || 'customer';
+
+      // Check public.profiles in Supabase
       try {
-        const profileRes = await fetch(`${API_BASE}/auth/me`, {
-          headers: { Authorization: `Bearer ${sbData.session.access_token}` },
-        });
-        if (profileRes.ok) {
-          const userProfile = await profileRes.json();
-          setAuthSession(sbData.session.access_token, userProfile, false);
-          return { access_token: sbData.session.access_token, user: userProfile, is_demo: false };
+        const { data: prof } = await client
+          .from('profiles')
+          .select('role, display_name, status')
+          .eq('id', u.id)
+          .maybeSingle();
+        if (prof?.role) {
+          userRole = prof.role;
         }
-      } catch (e) {
+      } catch {
         // quiet fallback
       }
-      const u = sbData.user;
-      const userProfile = {
-        id: u.id,
-        email: u.email,
-        display_name: u.user_metadata?.display_name || u.email?.split('@')[0],
-        role: u.user_metadata?.role || 'customer',
-        status: 'active',
-      };
-      setAuthSession(sbData.session.access_token, userProfile, false);
-      return { access_token: sbData.session.access_token, user: userProfile, is_demo: false };
+
+      // Validate with backend /auth/me server-side if backend is configured
+      let userProfile = null;
+      if (API_BASE && !API_BASE.startsWith(window.location.origin)) {
+        try {
+          const profileRes = await fetch(`${API_BASE}/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (profileRes.ok) {
+            userProfile = await profileRes.json();
+          }
+        } catch {
+          // quiet fallback
+        }
+      }
+
+      if (!userProfile) {
+        userProfile = {
+          id: u.id,
+          email: u.email,
+          display_name: u.user_metadata?.display_name || u.email?.split('@')[0],
+          role: userRole,
+          status: 'active',
+          is_demo: false,
+        };
+      }
+
+      setAuthSession(token, userProfile, false);
+      return { access_token: token, user: userProfile, is_demo: false };
     }
   }
 
-  // 2. FastAPI Backend /auth/login
+  // 2. FastAPI Backend /auth/login (handles Supabase server-side and backend Demo Mode)
   if (!isOfflineMode() && API_BASE) {
-    const res = await fetch(`${API_BASE}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-
-    const data = await handleResponse(res);
-    setAuthSession(data.access_token, data.user, data.is_demo);
-    return data;
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, password }),
+      });
+      const data = await handleResponse(res);
+      setAuthSession(data.access_token, data.user, data.is_demo);
+      return data;
+    } catch (err) {
+      if (err.message && !err.message.toLowerCase().includes('failed to fetch') && !err.message.toLowerCase().includes('networkerror')) {
+        throw err;
+      }
+    }
   }
 
   // 3. Demo Mode Fallback (Deterministic offline simulation)
-  const isDemoAdmin = email.toLowerCase().includes('admin');
+  const isDemoAdmin = cleanEmail.includes('admin');
   const demoUser = {
     id: isDemoAdmin ? 'admin-user-001' : 'demo-user-001',
-    email,
+    email: cleanEmail,
     display_name: isDemoAdmin ? 'System Administrator' : 'Demo Customer',
     role: isDemoAdmin ? 'admin' : 'customer',
     status: 'active',
@@ -201,36 +315,55 @@ export async function login(email, password) {
 }
 
 export async function signup(email, password, displayName = '') {
-  // Public signups always receive role 'customer'
-  if (supabase) {
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-      options: {
-        data: {
-          display_name: displayName || email.split('@')[0],
-          role: 'customer',
+  const cleanEmail = email.trim().toLowerCase();
+
+  // 1. Supabase Auth if client-side credentials are configured
+  const client = getSupabaseClient();
+  if (client) {
+    try {
+      const { data, error } = await client.auth.signUp({
+        email: cleanEmail,
+        password,
+        options: {
+          data: {
+            display_name: displayName || cleanEmail.split('@')[0],
+            role: 'customer',
+          },
         },
-      },
-    });
-    if (error) {
-      throw new Error(error.message);
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Signup failed.');
+      }
+
+      return {
+        status: 'ok',
+        message: 'Account created! Please check your email inbox to verify your account.',
+      };
+    } catch (err) {
+      if (err.message && !err.message.toLowerCase().includes('fetch')) {
+        throw err;
+      }
     }
-    return {
-      status: 'ok',
-      message: 'Account created! Please check your email inbox to verify your account.',
-    };
   }
 
+  // 2. FastAPI Backend /auth/signup
   if (!isOfflineMode() && API_BASE) {
-    const res = await fetch(`${API_BASE}/auth/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, display_name: displayName }),
-    });
-    return await handleResponse(res);
+    try {
+      const res = await fetch(`${API_BASE}/auth/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, password, display_name: displayName }),
+      });
+      return await handleResponse(res);
+    } catch (err) {
+      if (err.message && !err.message.toLowerCase().includes('failed to fetch') && !err.message.toLowerCase().includes('networkerror')) {
+        throw err;
+      }
+    }
   }
 
+  // 3. Offline / Demo Mode Fallback
   return {
     status: 'ok',
     message: 'Account registered successfully in Demo Mode. Default role: customer.',
@@ -238,25 +371,48 @@ export async function signup(email, password, displayName = '') {
 }
 
 export async function resetPassword(email) {
-  if (supabase) {
-    await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    return {
-      status: 'ok',
-      message: 'If this email is registered, instructions to reset your password have been sent.',
-    };
+  const cleanEmail = email.trim().toLowerCase();
+
+  // 1. Supabase Auth if client-side credentials are configured
+  const client = getSupabaseClient();
+  if (client) {
+    try {
+      const { error } = await client.auth.resetPasswordForEmail(cleanEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Password reset failed.');
+      }
+
+      return {
+        status: 'ok',
+        message: 'If this email is registered, instructions to reset your password have been sent.',
+      };
+    } catch (err) {
+      if (err.message && !err.message.toLowerCase().includes('fetch')) {
+        throw err;
+      }
+    }
   }
 
+  // 2. FastAPI Backend /auth/reset-password
   if (!isOfflineMode() && API_BASE) {
-    const res = await fetch(`${API_BASE}/auth/reset-password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    });
-    return await handleResponse(res);
+    try {
+      const res = await fetch(`${API_BASE}/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail }),
+      });
+      return await handleResponse(res);
+    } catch (err) {
+      if (err.message && !err.message.toLowerCase().includes('failed to fetch') && !err.message.toLowerCase().includes('networkerror')) {
+        throw err;
+      }
+    }
   }
 
+  // 3. Offline / Demo Mode Fallback
   return {
     status: 'ok',
     message: 'If this email is registered, instructions to reset your password have been sent.',
@@ -264,8 +420,9 @@ export async function resetPassword(email) {
 }
 
 export async function updatePassword(newPassword) {
-  if (supabase) {
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
+  const client = getSupabaseClient();
+  if (client) {
+    const { error } = await client.auth.updateUser({ password: newPassword });
     if (error) throw new Error(error.message);
     return { status: 'ok', message: 'Password updated successfully.' };
   }
@@ -274,8 +431,9 @@ export async function updatePassword(newPassword) {
 
 export async function logout() {
   try {
-    if (supabase) {
-      await supabase.auth.signOut();
+    const client = getSupabaseClient();
+    if (client) {
+      await client.auth.signOut();
     }
     if (!isOfflineMode() && isAuthenticated() && API_BASE) {
       await fetch(`${API_BASE}/auth/logout`, {

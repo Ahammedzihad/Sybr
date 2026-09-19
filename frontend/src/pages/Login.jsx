@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { ShieldCheck, Lock, Mail, ArrowRight, AlertCircle, Sparkles, CheckCircle2, ShieldAlert } from 'lucide-react';
-import { login, setAuthSession, getCurrentUser } from '../api';
+import { ShieldCheck, Lock, Mail, ArrowRight, AlertCircle, CheckCircle2, X, Sparkles, ShieldAlert } from 'lucide-react';
+import { login } from '../api';
 import Button from '../components/ui/Button';
 
 export default function Login() {
@@ -40,7 +40,7 @@ export default function Login() {
     setNotice('');
 
     if (!email.trim() || !password.trim()) {
-      setError('Please provide both your email and password.');
+      setError('Please enter both your email address and password.');
       return;
     }
 
@@ -54,7 +54,7 @@ export default function Login() {
       const res = await login(email.trim(), password);
       routeAfterLogin(res.user);
     } catch (err) {
-      setError(err.message || 'Invalid email or password. Please check your credentials.');
+      setError(err.message || 'Invalid email or password.');
     } finally {
       setLoading(false);
     }
@@ -69,8 +69,7 @@ export default function Login() {
       const res = await login('customer@sybr.local', 'CustomerDemo2026!');
       routeAfterLogin(res.user);
     } catch (err) {
-      setAuthSession('demo-token', { id: 'demo-user-001', email: 'customer@sybr.local', role: 'customer' }, true);
-      navigate('/', { replace: true });
+      setError(err.message || 'Customer demo login failed.');
     } finally {
       setLoading(false);
     }
@@ -85,8 +84,7 @@ export default function Login() {
       const res = await login('admin@sybr.local', 'AdminSuper2026!');
       routeAfterLogin(res.user);
     } catch (err) {
-      setAuthSession('admin-demo-token', { id: 'admin-user-001', email: 'admin@sybr.local', role: 'admin' }, true);
-      navigate('/admin', { replace: true });
+      setError(err.message || 'Admin demo login failed.');
     } finally {
       setLoading(false);
     }
@@ -99,7 +97,7 @@ export default function Login() {
 
       <div className="w-full max-w-md relative z-10 space-y-6">
         
-        {/* Brand Lockup */}
+        {/* 1. Sybr Branding & Logo, 2. Title, 3. Short Subtitle */}
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-neutral-900 text-white shadow-lg shadow-neutral-900/10 mb-2">
             <ShieldCheck className="w-6 h-6 text-white" />
@@ -110,19 +108,6 @@ export default function Login() {
           <p className="text-xs text-neutral-500 max-w-xs mx-auto">
             AI Support Intelligence & Dual-Layer Threat Detection Platform
           </p>
-        </div>
-
-        {/* Evaluation Banner */}
-        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-start gap-2.5 text-left">
-          <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-          <div className="flex-1 text-xs">
-            <div className="font-semibold text-amber-900">
-              Supabase Auth & Enterprise RBAC Enabled
-            </div>
-            <div className="text-amber-800/80 mt-0.5 text-[11px] leading-relaxed">
-              Sign in with your Supabase account or choose a 1-click Quick Demo profile below to explore the Customer or Admin portals.
-            </div>
-          </div>
         </div>
 
         {/* Login Card */}
@@ -143,6 +128,7 @@ export default function Login() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* 4. Email address input */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-neutral-700 block">
                 Email address
@@ -152,14 +138,26 @@ export default function Login() {
                 <input
                   type="email"
                   required
+                  autoComplete="username"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="analyst@organization.com"
-                  className="w-full pl-9 pr-3 py-2 text-xs bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 outline-none transition"
+                  placeholder="name@company.com"
+                  className="w-full pl-9 pr-8 py-2 text-xs bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 outline-none transition"
                 />
+                {email && (
+                  <button
+                    type="button"
+                    onClick={() => setEmail('')}
+                    title="Clear email"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 p-0.5 rounded-full hover:bg-neutral-200/60 transition"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             </div>
 
+            {/* 5. Password input, 6. Show/Hide password, 7. Forgot password */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold text-neutral-700">
@@ -177,6 +175,7 @@ export default function Login() {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
@@ -192,6 +191,7 @@ export default function Login() {
               </div>
             </div>
 
+            {/* 8. Sign In button */}
             <Button
               type="submit"
               disabled={loading}
@@ -208,6 +208,7 @@ export default function Login() {
             </Button>
           </form>
 
+          {/* 9. Create Customer Account / Sign Up link */}
           <div className="pt-2 border-t border-neutral-100 flex items-center justify-between text-xs">
             <span className="text-neutral-500">Don't have an account?</span>
             <Link to="/signup" className="text-[#0071e3] font-medium hover:underline">
@@ -228,7 +229,7 @@ export default function Login() {
               type="button"
               onClick={handleQuickCustomerDemo}
               disabled={loading}
-              className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 text-neutral-800 text-xs font-medium transition active:scale-[0.99]"
+              className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 text-neutral-800 text-xs font-medium transition active:scale-[0.99] cursor-pointer"
             >
               <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
               <span>Customer Demo</span>
@@ -238,7 +239,7 @@ export default function Login() {
               type="button"
               onClick={handleQuickAdminDemo}
               disabled={loading}
-              className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 text-neutral-800 text-xs font-medium transition active:scale-[0.99]"
+              className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 text-neutral-800 text-xs font-medium transition active:scale-[0.99] cursor-pointer"
             >
               <ShieldAlert className="w-3.5 h-3.5 text-violet-600" />
               <span>Admin Demo</span>
