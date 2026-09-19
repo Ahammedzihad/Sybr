@@ -27,6 +27,16 @@ from app.schemas import (
     AuditLogEntry,
     CustomerDashboardKPIs,
     AdminDashboardKPIs,
+    AdminReviewCorrectionRequest,
+    AdminStatusUpdateRequest,
+    AdminInternalNoteRequest,
+    AdminDraftResponseRequest,
+    AdminDraftResponseResponse,
+    AdminCategoryAnalyticsResponse,
+    AdminSecurityAnalyticsResponse,
+    AdminAIPerformanceResponse,
+    CustomerOverviewItem,
+    CustomerHistoryResponse,
 )
 from app.aggregates import (
     compute_dashboard_data,
@@ -60,8 +70,18 @@ from app.db import (
     get_supabase_client,
     get_all_conversations,
     list_profiles,
+    get_profile,
     update_profile_role,
     list_audit_logs,
+    update_conversation_review,
+    update_conversation_status,
+    add_conversation_internal_note,
+    set_conversation_needs_review,
+    get_admin_category_analytics,
+    get_admin_security_analytics,
+    get_admin_ai_performance,
+    list_customer_overviews,
+    get_conversations_by_user,
 )
 
 app = FastAPI(
@@ -208,7 +228,7 @@ async def customer_get_dashboard(current_user: UserProfile = Depends(require_cus
 @app.get("/admin/dashboard", response_model=AdminDashboardKPIs, tags=["Admin Portal"])
 async def admin_get_dashboard(current_admin: UserProfile = Depends(require_admin)):
     """
-    Platform-level overview metrics for the Admin Dashboard.
+    Platform-level overview metrics for the Admin Dashboard (Section 9 & 21).
     Strictly protected by require_admin.
     """
     profiles = list_profiles()
@@ -220,6 +240,8 @@ async def admin_get_dashboard(current_admin: UserProfile = Depends(require_admin
     total_platform_convs = len(all_convs)
     total_platform_threats = sum(1 for c in all_convs if c.security.threat_detected)
     high_risk_threats = sum(1 for c in all_convs if c.security.risk_level in ("High", "Critical"))
+    needs_review_count = sum(1 for c in all_convs if c.needs_human_review)
+    unresolved_count = sum(1 for c in all_convs if c.resolution_status in ("Unresolved", "Pending"))
 
     raw_logs = list_audit_logs(limit=10)
     audit_entries = [
@@ -235,6 +257,24 @@ async def admin_get_dashboard(current_admin: UserProfile = Depends(require_admin
         for l in raw_logs
     ]
 
+    needs_attention = [
+        {
+            "id": c.conversation_id,
+            "created_at": c.created_at,
+            "issue": c.customer_issue or (c.raw_text_masked[:60] if c.raw_text_masked else ""),
+            "category": c.category,
+            "priority": c.priority,
+            "risk_level": c.security.risk_level,
+            "threat_detected": c.security.threat_detected,
+            "needs_human_review": c.needs_human_review,
+            "processing_status": c.processing_status,
+            "resolution_status": c.resolution_status,
+            "user_id": c.user_id,
+        }
+        for c in all_convs
+        if c.priority == "Critical" or c.security.risk_level in ("Critical", "High") or c.needs_human_review or c.is_angry
+    ][:10]
+
     return AdminDashboardKPIs(
         total_users=total_users,
         total_customers=total_customers,
@@ -242,6 +282,8 @@ async def admin_get_dashboard(current_admin: UserProfile = Depends(require_admin
         total_platform_conversations=total_platform_convs,
         total_platform_threats=total_platform_threats,
         high_risk_threats=high_risk_threats,
+        needs_review_count=needs_review_count,
+        unresolved_count=unresolved_count,
         ai_status={
             "provider": "Google Gemini",
             "model": settings.GEMINI_MODEL,
@@ -253,6 +295,200 @@ async def admin_get_dashboard(current_admin: UserProfile = Depends(require_admin
             "rls_enforced": True,
         },
         recent_audit_logs=audit_entries,
+        needs_attention=needs_attention,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Section 13, 14, 15: Admin Operational Review & Workflow Endpoints
+# ---------------------------------------------------------------------------
+
+@app.patch("/admin/conversations/{conv_id}/review", response_model=ConversationRecord, tags=["Admin Portal"])
+async def admin_review_conversation(
+    conv_id: str,
+    req: AdminReviewCorrectionRequest,
+    current_admin: UserProfile = Depends(require_admin),
+):
+    """
+    Submits human review corrections for category, issue label, priority, risk level, or resolution.
+    Preserves original AI analysis and logs security audit trail (Section 13 & 15).
+    """
+    overrides = req.model_dump(exclude_unset=True)
+    reason = overrides.pop("reason", "Manual administrative review & calibration")
+    updated = update_conversation_review(
+        conv_id=conv_id,
+        reviewer_id=current_admin.id,
+        reviewer_email=current_admin.email,
+        overrides=overrides,
+        reason=reason,
+    )
+    if not updated:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Conversation '{conv_id}' not found.",
+        )
+    return updated
+
+
+@app.patch("/admin/conversations/{conv_id}/status", response_model=ConversationRecord, tags=["Admin Portal"])
+async def admin_update_conversation_status(
+    conv_id: str,
+    req: AdminStatusUpdateRequest,
+    current_admin: UserProfile = Depends(require_admin),
+):
+    """
+    Updates operational workflow status, resolution status, or assignment for a conversation (Section 15).
+    """
+    updated = update_conversation_status(
+        conv_id=conv_id,
+        actor_id=current_admin.id,
+        actor_email=current_admin.email,
+        processing_status=req.processing_status,
+        resolution_status=req.resolution_status,
+        assigned_to=req.assigned_to,
+    )
+    if not updated:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Conversation '{conv_id}' not found.",
+        )
+    return updated
+
+
+@app.post("/admin/conversations/{conv_id}/notes", tags=["Admin Portal"])
+async def admin_add_internal_note(
+    conv_id: str,
+    req: AdminInternalNoteRequest,
+    current_admin: UserProfile = Depends(require_admin),
+):
+    """
+    Appends an internal admin note to a conversation dossier (Section 14 & 15).
+    Private to administrative staff; strictly hidden from customers.
+    """
+    note = add_conversation_internal_note(
+        conv_id=conv_id,
+        author_id=current_admin.id,
+        author_name=current_admin.display_name or current_admin.email.split("@")[0],
+        note_text=req.text,
+        author_email=current_admin.email,
+    )
+    if not note:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Conversation '{conv_id}' not found.",
+        )
+    return note
+
+
+@app.post("/admin/conversations/{conv_id}/request-review", response_model=ConversationRecord, tags=["Admin Portal"])
+async def admin_request_conversation_review(
+    conv_id: str,
+    reason: str = Query("Flagged for administrative review", min_length=1),
+    current_admin: UserProfile = Depends(require_admin),
+):
+    """Flags a conversation for the human review triage queue (Section 13)."""
+    updated = set_conversation_needs_review(
+        conv_id=conv_id,
+        actor_id=current_admin.id,
+        actor_email=current_admin.email,
+        reason=reason,
+    )
+    if not updated:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Conversation '{conv_id}' not found.",
+        )
+    return updated
+
+
+@app.post("/admin/conversations/{conv_id}/draft-response", response_model=AdminDraftResponseResponse, tags=["Admin Portal"])
+async def admin_generate_draft_response(
+    conv_id: str,
+    req: AdminDraftResponseRequest,
+    current_admin: UserProfile = Depends(require_admin),
+):
+    """
+    Synthesizes an advisory customer support response draft grounded in the conversation's
+    extracted issues and security findings.
+    """
+    record = get_conversation(conv_id)
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Conversation '{conv_id}' not found.",
+        )
+
+    if record.security.threat_detected:
+        draft = (
+            f"Dear Customer,\n\n"
+            f"Our security monitoring system flagged a potential security anomaly regarding: '{record.customer_issue or 'your recent communication'}'.\n"
+            f"For your account protection, please DO NOT click any external links, download attachments, or share one-time passwords (OTP).\n\n"
+            f"Our security engineering team is actively reviewing your case. If you have questions, please reach out through our verified in-app help desk."
+        )
+        rec_action = record.security.recommended_action or "Escalate immediately to SecOps; quarantine ticket."
+        rationale = f"Active threat type '{record.security.threat_type}' with risk level '{record.security.risk_level}'."
+    else:
+        category = record.category or "Support"
+        draft = (
+            f"Hi there,\n\n"
+            f"Thank you for contacting Sybr Support regarding {record.customer_issue or 'your inquiry'}.\n"
+            f"We understand the urgency and our team is actively handling your {category} ticket.\n\n"
+            f"Status: {record.resolution_status}. We will update you as soon as this is fully resolved."
+        )
+        rec_action = f"Standard support workflow for {category} ({record.issue_label}). Priority: {record.priority}."
+        rationale = f"Routine customer service inquiry categorized under {category} with {record.urgency} urgency."
+
+    return AdminDraftResponseResponse(
+        draft_response=draft,
+        recommended_action=rec_action,
+        rationale=rationale,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Section 16 & 17: Admin Intelligence Analytics & Observability Endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/admin/analytics/categories", response_model=AdminCategoryAnalyticsResponse, tags=["Admin Portal"])
+async def admin_category_analytics(current_admin: UserProfile = Depends(require_admin)):
+    """Provides category frequency and resolution analytics across all platform conversations (Section 16)."""
+    return get_admin_category_analytics()
+
+
+@app.get("/admin/analytics/security", response_model=AdminSecurityAnalyticsResponse, tags=["Admin Portal"])
+async def admin_security_analytics(current_admin: UserProfile = Depends(require_admin)):
+    """Provides threat intelligence distribution, detected techniques, and top indicators (Section 17)."""
+    return get_admin_security_analytics()
+
+
+@app.get("/admin/analytics/ai", response_model=AdminAIPerformanceResponse, tags=["Admin Portal"])
+async def admin_ai_performance(current_admin: UserProfile = Depends(require_admin)):
+    """Provides AI observability: Gemini vs fallback rates, latency, and human correction metrics (Section 17)."""
+    return get_admin_ai_performance()
+
+
+@app.get("/admin/customers", response_model=List[CustomerOverviewItem], tags=["Admin Portal"])
+async def admin_list_customers(current_admin: UserProfile = Depends(require_admin)):
+    """Lists customer accounts with aggregate ticket and threat metrics (Section 8)."""
+    return list_customer_overviews()
+
+
+@app.get("/admin/customers/{customer_id}", response_model=CustomerHistoryResponse, tags=["Admin Portal"])
+async def admin_get_customer_history(customer_id: str, current_admin: UserProfile = Depends(require_admin)):
+    """Retrieves full conversation history and profile for a specific customer (Section 8)."""
+    profile = get_profile(customer_id)
+    if not profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Customer '{customer_id}' not found.",
+        )
+    convs = get_conversations_by_user(customer_id)
+    return CustomerHistoryResponse(
+        customer_id=customer_id,
+        email=profile.get("email", ""),
+        display_name=profile.get("display_name") or profile.get("email", "").split("@")[0],
+        total_conversations=len(convs),
+        conversations=convs,
     )
 
 
@@ -456,7 +692,7 @@ async def get_conversations(
         q=q,
         page=page,
         limit=limit,
-        user_id=current_user.id,
+        user_id=current_user.id if current_user.role != "admin" else None,
     )
     return {
         "items": items,
@@ -468,7 +704,7 @@ async def get_conversations(
 
 @app.get("/conversations/{conv_id}", response_model=ConversationRecord, tags=["Conversations"])
 async def get_conversation_by_id(conv_id: str, current_user: UserProfile = Depends(get_current_user)):
-    """Retrieves full conversation details with role-aware data isolation."""
+    """Retrieves full conversation details with role-aware data isolation (Section 14 & 22)."""
     effective_uid = None if current_user.role == "admin" else current_user.id
     record = get_conversation(conv_id, user_id=effective_uid)
     if not record:
@@ -476,6 +712,12 @@ async def get_conversation_by_id(conv_id: str, current_user: UserProfile = Depen
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Conversation '{conv_id}' not found.",
         )
+    # Strict customer privacy isolation:
+    # Internal notes, reviewer identities, and administrative deliberations are NEVER exposed to customers
+    if current_user.role != "admin":
+        record.internal_notes = []
+        record.human_overrides = None
+        record.reviewed_by = None
     return record
 
 

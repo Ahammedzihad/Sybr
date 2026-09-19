@@ -16,19 +16,44 @@ import {
   Sparkles,
   Info,
   Copy,
-  Check
+  Check,
+  Edit3,
+  Send,
+  Lock,
+  Flag,
+  UserCheck,
+  MessageSquare,
+  X
 } from 'lucide-react';
-import { fetchConversationById, reanalyzeConversation, deleteConversation } from '../api';
+import { 
+  fetchConversationById, 
+  reanalyzeConversation, 
+  deleteConversation,
+  submitAdminReviewCorrection,
+  updateAdminConversationStatus,
+  addAdminInternalNote,
+  requestHumanReview,
+  generateDraftResponse,
+  isAdmin
+} from '../api';
 import { PriorityBadge, RiskBadge, SentimentBadge, EmotionBadge, ResolutionBadge } from '../components/Badges';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
 
-/**
- * Apple HIG Inspector ("Get Info" Dossier)
- * Grounded in Apple's panels.md and liquid-glass.md
- * Signature Dual-Layer Triage Workspace for SecOps & Support Leads
- */
+const CANONICAL_CATEGORIES = [
+  "Billing/Payment", "Account/Login", "Product Issue", "Delivery/Shipping",
+  "Refund Request", "Subscription Issue", "Technical Problem", "Service Quality",
+  "Security Concern", "Other"
+];
+
+const CANONICAL_ISSUE_LABELS = [
+  "Login Failure", "Password Reset", "Payment Failure", "Duplicate Charge",
+  "Refund Delay", "Delivery Delay", "Wrong/Damaged Item", "Order Not Confirmed",
+  "Subscription Cancellation", "App Crash/Bug", "Service Outage", "Account Compromise",
+  "Unauthorized Transaction", "Phishing Attempt", "Poor Support Experience", "Other"
+];
+
 export default function ConversationDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -38,12 +63,38 @@ export default function ConversationDetail() {
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
 
+  // Admin Review & Workflow State
+  const adminMode = isAdmin();
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewCat, setReviewCat] = useState('');
+  const [reviewLabel, setReviewLabel] = useState('');
+  const [reviewPrio, setReviewPrio] = useState('');
+  const [reviewRisk, setReviewRisk] = useState('');
+  const [reviewStatus, setReviewStatus] = useState('');
+  const [reviewReason, setReviewReason] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+
+  // Internal Notes State
+  const [noteText, setNoteText] = useState('');
+  const [submittingNote, setSubmittingNote] = useState(false);
+
+  // AI Draft Response State
+  const [showDraftModal, setShowDraftModal] = useState(false);
+  const [draftData, setDraftData] = useState(null);
+  const [loadingDraft, setLoadingDraft] = useState(false);
+  const [copiedDraft, setCopiedDraft] = useState(false);
+
   const loadRecord = async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await fetchConversationById(id);
       setRecord(data);
+      setReviewCat(data.category || 'Other');
+      setReviewLabel(data.issue_label || 'Other');
+      setReviewPrio(data.priority || 'Low');
+      setReviewRisk(data.security?.risk_level || 'Low');
+      setReviewStatus(data.resolution_status || 'Pending');
     } catch (err) {
       setError(err.message || 'Failed to load conversation details');
     } finally {
@@ -78,10 +129,92 @@ export default function ConversationDetail() {
     if (!window.confirm('Are you sure you want to permanently delete this conversation? (Privacy/GDPR compliance)')) return;
     try {
       await deleteConversation(id);
-      navigate('/conversations');
+      navigate(adminMode ? '/admin/conversations' : '/conversations');
     } catch (err) {
       alert('Delete failed: ' + err.message);
     }
+  };
+
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    setSubmittingReview(true);
+    try {
+      const updated = await submitAdminReviewCorrection(id, {
+        category: reviewCat,
+        issue_label: reviewLabel,
+        priority: reviewPrio,
+        risk_level: reviewRisk,
+        resolution_status: reviewStatus,
+        reason: reviewReason || 'Manual administrative calibration',
+      });
+      setRecord(updated);
+      setShowReviewModal(false);
+    } catch (err) {
+      alert('Correction submission failed: ' + err.message);
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const handleStatusChange = async (newStatus, newResolution) => {
+    try {
+      const updated = await updateAdminConversationStatus(id, {
+        processing_status: newStatus,
+        resolution_status: newResolution,
+      });
+      setRecord(updated);
+    } catch (err) {
+      alert('Status update failed: ' + err.message);
+    }
+  };
+
+  const handleAddNote = async (e) => {
+    e.preventDefault();
+    if (!noteText.trim()) return;
+    setSubmittingNote(true);
+    try {
+      const newNote = await addAdminInternalNote(id, noteText.trim());
+      setRecord((prev) => ({
+        ...prev,
+        internal_notes: [...(prev.internal_notes || []), newNote],
+      }));
+      setNoteText('');
+    } catch (err) {
+      alert('Failed to add internal note: ' + err.message);
+    } finally {
+      setSubmittingNote(false);
+    }
+  };
+
+  const handleFlagReview = async () => {
+    const reason = window.prompt('Enter reason for administrative review:', 'Ambiguous classification requiring supervisor review');
+    if (!reason) return;
+    try {
+      const updated = await requestHumanReview(id, reason);
+      setRecord(updated);
+    } catch (err) {
+      alert('Failed to flag for review: ' + err.message);
+    }
+  };
+
+  const handleGenerateDraft = async () => {
+    setShowDraftModal(true);
+    setLoadingDraft(true);
+    try {
+      const draft = await generateDraftResponse(id);
+      setDraftData(draft);
+    } catch (err) {
+      alert('Failed to generate draft response: ' + err.message);
+    } finally {
+      setLoadingDraft(false);
+    }
+  };
+
+  const handleCopyDraft = () => {
+    if (!draftData) return;
+    navigator.clipboard.writeText(draftData.draft_response);
+    setCopiedDraft(true);
+    setTimeout(() => setCopiedDraft(false), 2000);
   };
 
   if (loading && !record) {
@@ -110,7 +243,7 @@ export default function ConversationDetail() {
         </div>
         <h3 className="text-base font-semibold text-[#1d1d1f] mb-1">Record Not Found</h3>
         <p className="text-xs text-[#59595e] mb-5 leading-relaxed">{error}</p>
-        <Link to="/conversations">
+        <Link to={adminMode ? '/admin/conversations' : '/conversations'}>
           <Button variant="secondary" size="md">
             Back to Inbox
           </Button>
@@ -122,13 +255,13 @@ export default function ConversationDetail() {
   const { security, summary, messages } = record;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 animate-fade-in">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 animate-fade-in text-left">
       
       {/* Top Header & Breadcrumbs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-200/80 pb-4">
         <div className="flex items-center gap-3">
           <Link
-            to="/conversations"
+            to={adminMode ? '/admin/conversations' : '/conversations'}
             aria-label="Back to Conversations"
             className="p-1.5 rounded-md bg-white border border-neutral-200 hover:bg-neutral-50 text-neutral-700 transition shadow-xs"
           >
@@ -146,6 +279,18 @@ export default function ConversationDetail() {
               </button>
               <span className="text-xs text-neutral-500 font-mono font-medium uppercase">[{record.channel || 'ticket'}]</span>
               <span className="text-xs text-neutral-400">• {new Date(record.created_at).toLocaleString()}</span>
+              {record.is_human_reviewed && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
+                  <UserCheck className="w-3 h-3" />
+                  Human Reviewed
+                </span>
+              )}
+              {record.needs_human_review && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1">
+                  <Flag className="w-3 h-3" />
+                  Needs Review
+                </span>
+              )}
             </div>
             <h1 className="text-lg sm:text-xl font-bold text-neutral-900 tracking-tight mt-1 font-sans">
               {record.customer_issue || record.issue_label}
@@ -153,7 +298,26 @@ export default function ConversationDetail() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          {adminMode && (
+            <>
+              <button
+                onClick={() => setShowReviewModal(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 transition shadow-xs"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Review & Correct</span>
+              </button>
+              <button
+                onClick={handleGenerateDraft}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50/70 text-indigo-700 text-xs font-semibold hover:bg-indigo-100 transition shadow-xs"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Draft AI Reply</span>
+              </button>
+            </>
+          )}
+
           <Button
             variant="secondary"
             size="sm"
@@ -173,6 +337,91 @@ export default function ConversationDetail() {
           </Button>
         </div>
       </div>
+
+      {/* Admin Operational Command Bar */}
+      {adminMode && (
+        <div className="bg-white p-3.5 rounded-2xl border border-neutral-200/80 shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="font-semibold text-neutral-500 uppercase tracking-wider text-[10px]">
+              Workflow Actions:
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-neutral-500">Status:</span>
+              <select
+                value={record.processing_status || 'AI Analyzed'}
+                onChange={(e) => handleStatusChange(e.target.value, record.resolution_status)}
+                className="px-2 py-1 bg-neutral-50 border border-neutral-200 rounded-lg text-xs font-medium outline-none"
+              >
+                <option value="AI Analyzed">AI Analyzed</option>
+                <option value="Needs Review">Needs Review</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Escalated">Escalated</option>
+                <option value="Human Reviewed">Human Reviewed</option>
+                <option value="Closed">Closed</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-neutral-500">Resolution:</span>
+              <select
+                value={record.resolution_status || 'Pending'}
+                onChange={(e) => handleStatusChange(record.processing_status, e.target.value)}
+                className="px-2 py-1 bg-neutral-50 border border-neutral-200 rounded-lg text-xs font-medium outline-none"
+              >
+                <option value="Pending">Pending</option>
+                <option value="Unresolved">Unresolved</option>
+                <option value="Resolved">Resolved</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {!record.needs_human_review ? (
+              <button
+                onClick={handleFlagReview}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 transition text-[11px] font-semibold"
+              >
+                <Flag className="w-3 h-3" />
+                <span>Flag for Review</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => handleStatusChange('Human Reviewed', record.resolution_status)}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition text-[11px] font-semibold"
+              >
+                <CheckCircle2 className="w-3 h-3" />
+                <span>Mark Review Complete</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Human Review Audit Comparison Banner */}
+      {record.is_human_reviewed && record.human_overrides && (
+        <div className="p-4 rounded-2xl border border-amber-200 bg-amber-50/60 text-xs space-y-2">
+          <div className="flex items-center justify-between font-semibold text-amber-900">
+            <span className="flex items-center gap-1.5 font-bold">
+              <UserCheck className="w-4 h-4 text-amber-700" />
+              Administrative Calibration Record (Ground Truth Audited)
+            </span>
+            <span className="text-[11px] text-amber-700 font-mono">
+              Reviewed by {record.reviewed_by || 'Supervisor'} • {new Date(record.reviewed_at).toLocaleString()}
+            </span>
+          </div>
+          <div className="text-amber-800">
+            <span className="font-semibold">Review Justification: </span>
+            <span>{record.human_overrides.last_correction?.reason || 'Manual calibration against enterprise support criteria.'}</span>
+          </div>
+          {record.human_overrides.original && (
+            <div className="pt-2 border-t border-amber-200/80 text-[11px] text-amber-700 flex flex-wrap gap-4">
+              <span>Original AI Category: <b className="font-mono">{record.human_overrides.original.category}</b></span>
+              <span>Original Issue: <b className="font-mono">{record.human_overrides.original.issue_label}</b></span>
+              <span>Original Priority: <b className="font-mono">{record.human_overrides.original.priority}</b></span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Recommended Operational Action Banner */}
       <div className={`p-3.5 rounded-xl border flex items-start gap-3 shadow-xs ${
@@ -275,11 +524,11 @@ export default function ConversationDetail() {
               </div>
             </div>
 
-            {/* Salient Keywords (F5) */}
+            {/* Salient Keywords */}
             {record.keywords && record.keywords.length > 0 && (
               <div>
                 <div className="text-[11px] font-bold text-[#59595e] uppercase tracking-wider mb-2">
-                  Salient Extracted Terms (F5)
+                  Salient Extracted Terms
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {record.keywords.map((kw, i) => (
@@ -291,7 +540,7 @@ export default function ConversationDetail() {
               </div>
             )}
 
-            {/* Conversation Thread Messages */}
+            {/* Interaction Thread Messages */}
             <div className="space-y-2.5">
               <h4 className="text-xs font-bold text-[#1d1d1f] uppercase tracking-wider">
                 Interaction Thread ({messages ? messages.length : 1} message{messages && messages.length > 1 ? 's' : ''})
@@ -452,6 +701,53 @@ export default function ConversationDetail() {
 
       </div>
 
+      {/* ADMIN-ONLY PRIVATE INTERNAL NOTES (Section 14 & 15) */}
+      {adminMode && (
+        <Card 
+          title="Internal Administrative Notes" 
+          subtitle="Privileged operator notes — strictly invisible to customer endpoints"
+          icon={Lock}
+        >
+          <div className="space-y-4">
+            <div className="space-y-2.5 max-h-60 overflow-y-auto">
+              {record.internal_notes && record.internal_notes.length > 0 ? (
+                record.internal_notes.map((note) => (
+                  <div key={note.id} className="p-3 bg-neutral-50 rounded-xl border border-neutral-200/80 text-xs">
+                    <div className="flex items-center justify-between text-[11px] text-neutral-500 mb-1 font-mono">
+                      <span className="font-bold text-neutral-800">{note.author_name || 'Administrator'}</span>
+                      <span>{new Date(note.created_at).toLocaleString()}</span>
+                    </div>
+                    <div className="text-neutral-700 whitespace-pre-wrap">{note.text}</div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-4 rounded-xl bg-neutral-50 border border-neutral-200/60 text-center text-xs text-neutral-400">
+                  No internal notes recorded yet. Add notes to coordinate resolution among operators.
+                </div>
+              )}
+            </div>
+
+            <form onSubmit={handleAddNote} className="flex gap-2">
+              <input
+                type="text"
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                placeholder="Add confidential operator note (audit logged)..."
+                className="flex-1 px-3 py-2 text-xs bg-neutral-50 border border-neutral-200 rounded-xl outline-none focus:bg-white focus:border-neutral-900 transition"
+              />
+              <button
+                type="submit"
+                disabled={submittingNote || !noteText.trim()}
+                className="px-4 py-2 bg-neutral-900 text-white rounded-xl text-xs font-semibold hover:bg-neutral-800 disabled:opacity-50 transition flex items-center gap-1.5"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>Save Note</span>
+              </button>
+            </form>
+          </div>
+        </Card>
+      )}
+
       {/* Raw Section 5 JSON Drawer */}
       <Card 
         title="Section 5 Locked JSON Contract" 
@@ -464,6 +760,172 @@ export default function ConversationDetail() {
           </pre>
         </div>
       </Card>
+
+      {/* MODAL: ADMIN REVIEW & CALIBRATION (Section 13) */}
+      {showReviewModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-neutral-200 shadow-2xl max-w-lg w-full p-6 space-y-4 animate-scale-in">
+            <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-neutral-900">Review & Calibrate Classification</h3>
+                <p className="text-xs text-neutral-500">Correct AI classification; baseline AI values are preserved in history.</p>
+              </div>
+              <button onClick={() => setShowReviewModal(false)} className="p-1 rounded-lg hover:bg-neutral-100 text-neutral-400">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleReviewSubmit} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-[11px] font-semibold text-neutral-700 mb-1">Canonical Category</label>
+                <select
+                  value={reviewCat}
+                  onChange={(e) => setReviewCat(e.target.value)}
+                  className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl outline-none"
+                >
+                  {CANONICAL_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-neutral-700 mb-1">Controlled Issue Label</label>
+                <select
+                  value={reviewLabel}
+                  onChange={(e) => setReviewLabel(e.target.value)}
+                  className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl outline-none"
+                >
+                  {CANONICAL_ISSUE_LABELS.map((l) => (
+                    <option key={l} value={l}>{l}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-neutral-700 mb-1">Priority</label>
+                  <select
+                    value={reviewPrio}
+                    onChange={(e) => setReviewPrio(e.target.value)}
+                    className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl outline-none"
+                  >
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                    <option value="Critical">Critical</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-neutral-700 mb-1">Security Risk Level</label>
+                  <select
+                    value={reviewRisk}
+                    onChange={(e) => setReviewRisk(e.target.value)}
+                    className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl outline-none"
+                  >
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                    <option value="Critical">Critical</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-neutral-700 mb-1">Resolution Status</label>
+                <select
+                  value={reviewStatus}
+                  onChange={(e) => setReviewStatus(e.target.value)}
+                  className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl outline-none"
+                >
+                  <option value="Pending">Pending</option>
+                  <option value="Unresolved">Unresolved</option>
+                  <option value="Resolved">Resolved</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-neutral-700 mb-1">Calibration Justification</label>
+                <textarea
+                  rows={2}
+                  value={reviewReason}
+                  onChange={(e) => setReviewReason(e.target.value)}
+                  placeholder="Explain reason for manual adjustment (recorded in audit registry)..."
+                  className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl outline-none focus:bg-white transition"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-neutral-100">
+                <button
+                  type="button"
+                  onClick={() => setShowReviewModal(false)}
+                  className="px-3.5 py-2 rounded-xl border border-neutral-200 text-neutral-700 hover:bg-neutral-50 font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingReview}
+                  className="px-4 py-2 bg-neutral-900 text-white rounded-xl font-semibold hover:bg-neutral-800 transition"
+                >
+                  {submittingReview ? 'Submitting...' : 'Save Calibration'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: AI DRAFT RESPONSE */}
+      {showDraftModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-neutral-200 shadow-2xl max-w-xl w-full p-6 space-y-4 animate-scale-in">
+            <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-indigo-600" />
+                <h3 className="text-base font-bold text-neutral-900">AI Customer Reply Assistant</h3>
+              </div>
+              <button onClick={() => setShowDraftModal(false)} className="p-1 rounded-lg hover:bg-neutral-100 text-neutral-400">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {loadingDraft ? (
+              <div className="p-8 text-center text-xs text-neutral-400">Synthesizing recommended response...</div>
+            ) : draftData ? (
+              <div className="space-y-3 text-xs">
+                <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-200/80">
+                  <div className="text-[10px] uppercase font-bold text-neutral-500 mb-1">Recommended Operational Action</div>
+                  <div className="text-neutral-900 font-medium">{draftData.recommended_action}</div>
+                </div>
+
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-neutral-500 mb-1">Advisory Response Draft</div>
+                  <textarea
+                    rows={6}
+                    readOnly
+                    value={draftData.draft_response}
+                    className="w-full p-3 bg-neutral-50 border border-neutral-200 rounded-xl font-sans text-xs outline-none"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-neutral-100">
+                  <span className="text-[11px] text-neutral-400">Advisory suggestion. Review before sending to customer.</span>
+                  <button
+                    onClick={handleCopyDraft}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-neutral-900 text-white rounded-xl font-semibold hover:bg-neutral-800 transition"
+                  >
+                    {copiedDraft ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedDraft ? 'Copied' : 'Copy to Clipboard'}</span>
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
 
     </div>
   );

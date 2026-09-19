@@ -432,6 +432,177 @@ export async function fetchAdminConversations(params = {}) {
   return await handleResponse(res);
 }
 
+export async function submitAdminReviewCorrection(convId, correctionData) {
+  if (isOfflineMode()) {
+    return {
+      conversation_id: convId,
+      ...correctionData,
+      is_human_reviewed: true,
+      reviewed_by: 'admin-user-001',
+      processing_status: 'Human Reviewed',
+    };
+  }
+  const res = await fetch(`${API_BASE}/admin/conversations/${convId}/review`, {
+    method: 'PATCH',
+    headers: getHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(correctionData),
+  });
+  return await handleResponse(res);
+}
+
+export async function updateAdminConversationStatus(convId, statusData) {
+  if (isOfflineMode()) {
+    return { conversation_id: convId, ...statusData };
+  }
+  const res = await fetch(`${API_BASE}/admin/conversations/${convId}/status`, {
+    method: 'PATCH',
+    headers: getHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(statusData),
+  });
+  return await handleResponse(res);
+}
+
+export async function addAdminInternalNote(convId, text) {
+  if (isOfflineMode()) {
+    return {
+      id: `note-${Date.now().toString().slice(-6)}`,
+      author_id: 'admin-user-001',
+      author_name: 'System Administrator',
+      text,
+      created_at: new Date().toISOString(),
+    };
+  }
+  const res = await fetch(`${API_BASE}/admin/conversations/${convId}/notes`, {
+    method: 'POST',
+    headers: getHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ text }),
+  });
+  return await handleResponse(res);
+}
+
+export async function requestHumanReview(convId, reason = 'Flagged for review') {
+  if (isOfflineMode()) {
+    return { conversation_id: convId, needs_human_review: true, review_reason: reason };
+  }
+  const res = await fetch(`${API_BASE}/admin/conversations/${convId}/request-review?reason=${encodeURIComponent(reason)}`, {
+    method: 'POST',
+    headers: getHeaders(),
+  });
+  return await handleResponse(res);
+}
+
+export async function generateDraftResponse(convId, options = {}) {
+  if (isOfflineMode()) {
+    return {
+      draft_response: `Dear Customer,\n\nThank you for reaching out regarding your support inquiry. Our administrative team has reviewed your ticket and is actively resolving the issue.\n\nBest regards,\nSybr Support Team`,
+      recommended_action: 'Standard operational support follow-up',
+      rationale: 'Customer inquiry under active administrative monitoring',
+    };
+  }
+  const res = await fetch(`${API_BASE}/admin/conversations/${convId}/draft-response`, {
+    method: 'POST',
+    headers: getHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(options),
+  });
+  return await handleResponse(res);
+}
+
+export async function fetchAdminCategoryAnalytics() {
+  if (isOfflineMode()) {
+    const data = await fetchDemoCache();
+    const categories = Object.entries(data.category_distribution || {}).map(([cat, count]) => ({
+      category: cat,
+      count,
+      percentage: Math.round((count / (data.kpis?.total_conversations || 1)) * 100),
+      unresolved_count: Math.floor(count * 0.3),
+      critical_count: Math.floor(count * 0.1),
+      threat_count: cat === 'Security Concern' ? count : 0,
+    }));
+    return { total_conversations: data.kpis?.total_conversations || 48, categories };
+  }
+  const res = await fetch(`${API_BASE}/admin/analytics/categories`, {
+    headers: getHeaders(),
+  });
+  return await handleResponse(res);
+}
+
+export async function fetchAdminSecurityAnalytics() {
+  if (isOfflineMode()) {
+    return {
+      total_threats: 14,
+      critical_count: 6,
+      high_count: 8,
+      threat_types: { 'Phishing': 9, 'Social Engineering': 3, 'Impersonation': 2 },
+      techniques: { 'Urgency': 12, 'Credential Harvesting': 9, 'OTP Request': 8, 'Lookalike Domains': 7 },
+      top_domains: [
+        { domain: 'paypa1-security.example', count: 5 },
+        { domain: 'bank-auth-verify.net', count: 4 },
+        { domain: 'account-update-portal.org', count: 3 },
+      ],
+      top_senders: [
+        { domain: 'gmail.com', count: 8 },
+        { domain: 'sec-alert.com', count: 3 },
+      ],
+      top_attachments: [],
+    };
+  }
+  const res = await fetch(`${API_BASE}/admin/analytics/security`, {
+    headers: getHeaders(),
+  });
+  return await handleResponse(res);
+}
+
+export async function fetchAdminAIPerformance() {
+  if (isOfflineMode()) {
+    return {
+      total_analyzed: 48,
+      gemini_count: 36,
+      fallback_count: 12,
+      fallback_rate: 25.0,
+      avg_processing_ms: 22,
+      human_corrections_count: 5,
+      human_correction_rate: 10.4,
+      review_queue_count: 3,
+      model_name: 'gemini-2.5-flash',
+      prompt_injection_signals_caught: 2,
+    };
+  }
+  const res = await fetch(`${API_BASE}/admin/analytics/ai`, {
+    headers: getHeaders(),
+  });
+  return await handleResponse(res);
+}
+
+export async function fetchAdminCustomers() {
+  if (isOfflineMode()) {
+    return [
+      { customer_id: 'demo-user-001', email: 'demo@sybr.local', display_name: 'Demo Customer', conversation_count: 11, unresolved_count: 3, critical_count: 2, last_activity: new Date().toISOString() },
+      { customer_id: 'demo-user-999', email: 'user999@sybr.local', display_name: 'Customer B', conversation_count: 1, unresolved_count: 0, critical_count: 0, last_activity: new Date().toISOString() },
+    ];
+  }
+  const res = await fetch(`${API_BASE}/admin/customers`, {
+    headers: getHeaders(),
+  });
+  return await handleResponse(res);
+}
+
+export async function fetchAdminCustomerHistory(customerId) {
+  if (isOfflineMode()) {
+    const data = await fetchDemoCache();
+    return {
+      customer_id: customerId,
+      email: `${customerId}@sybr.local`,
+      display_name: 'Customer Account',
+      total_conversations: (data.conversations || []).length,
+      conversations: data.conversations || [],
+    };
+  }
+  const res = await fetch(`${API_BASE}/admin/customers/${customerId}`, {
+    headers: getHeaders(),
+  });
+  return await handleResponse(res);
+}
+
 
 // ---------------------------------------------------------------------------
 // Telemetry & Health

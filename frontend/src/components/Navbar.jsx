@@ -41,7 +41,10 @@ export default function Navbar({ onToggleSidebar }) {
     if (p === '/customer') return 'Customer Dashboard';
     if (p === '/admin') return 'Admin Overview';
     if (p === '/admin/users') return 'User Management';
-    if (p === '/admin/conversations') return 'Platform Conversations';
+    if (p === '/admin/conversations') return 'Admin Inbox & Review';
+    if (p === '/admin/security') return 'SecOps Threat Center';
+    if (p === '/admin/analytics') return 'Category & AI Analytics';
+    if (p === '/admin/customers') return 'Customer Directory';
     if (p === '/admin/audit-logs') return 'Security Audit Log';
     if (p.startsWith('/conversations/')) return 'Conversation Inspector';
     if (p === '/conversations') return 'Conversations';

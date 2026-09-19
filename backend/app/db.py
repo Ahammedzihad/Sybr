@@ -198,6 +198,10 @@ def row_to_record(row: Dict[str, Any]) -> ConversationRecord:
     keywords_data = _parse_json_field(row.get("keywords") or row.get("keywords_json"), [])
     security_data = _parse_json_field(row.get("security_detail") or row.get("security_detail_json"), {})
     messages_data = _parse_json_field(row.get("messages") or row.get("messages_json"), [])
+    confidence_data = _parse_json_field(row.get("confidence") or row.get("confidence_json"), {})
+    ai_explanation_data = _parse_json_field(row.get("ai_explanation") or row.get("ai_explanation_json"), {})
+    human_overrides_data = _parse_json_field(row.get("human_overrides") or row.get("human_overrides_json"), None)
+    internal_notes_data = _parse_json_field(row.get("internal_notes") or row.get("internal_notes_json"), [])
 
     msg_objs = [Message(**m) if isinstance(m, dict) else m for m in messages_data] if messages_data else []
 
@@ -226,6 +230,21 @@ def row_to_record(row: Dict[str, Any]) -> ConversationRecord:
         source=row.get("source") or "real",
         raw_text_masked=row.get("raw_text_masked") or "",
         messages=msg_objs,
+        processing_status=row.get("processing_status") or "AI Analyzed",
+        assigned_to=row.get("assigned_to"),
+        assigned_at=row.get("assigned_at"),
+        reviewed_by=row.get("reviewed_by"),
+        reviewed_at=row.get("reviewed_at"),
+        escalated_at=row.get("escalated_at"),
+        resolved_at=row.get("resolved_at"),
+        confidence=confidence_data,
+        ai_explanation=ai_explanation_data,
+        needs_human_review=bool(row.get("needs_human_review")),
+        review_reason=row.get("review_reason"),
+        is_human_reviewed=bool(row.get("is_human_reviewed")),
+        human_overrides=human_overrides_data,
+        internal_notes=internal_notes_data if isinstance(internal_notes_data, list) else [],
+        draft_response=row.get("draft_response"),
     )
 
 
@@ -277,6 +296,21 @@ def upsert_conversation(record: ConversationRecord) -> None:
                 "messages": messages_dicts,
                 "ai_mode": record.ai_mode,
                 "processing_ms": record.processing_ms,
+                "processing_status": record.processing_status,
+                "assigned_to": record.assigned_to,
+                "assigned_at": record.assigned_at,
+                "reviewed_by": record.reviewed_by,
+                "reviewed_at": record.reviewed_at,
+                "escalated_at": record.escalated_at,
+                "resolved_at": record.resolved_at,
+                "confidence": record.confidence,
+                "ai_explanation": record.ai_explanation,
+                "needs_human_review": record.needs_human_review,
+                "review_reason": record.review_reason,
+                "is_human_reviewed": record.is_human_reviewed,
+                "human_overrides": record.human_overrides,
+                "internal_notes": record.internal_notes,
+                "draft_response": record.draft_response,
             }
             sb.table("conversations").upsert(payload).execute()
         except Exception:
@@ -294,8 +328,12 @@ def upsert_conversation(record: ConversationRecord) -> None:
         keywords_json, threat_detected, threat_type, social_engineering, techniques_json,
         suspicious_url, suspicious_domain, suspicious_email, suspicious_attachment,
         credential_request, otp_request, rule_score, risk_level, risk_reasons_json,
-        recommended_action, security_detail_json, messages_json, ai_mode, processing_ms
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        recommended_action, security_detail_json, messages_json, ai_mode, processing_ms,
+        processing_status, assigned_to, assigned_at, reviewed_by, reviewed_at,
+        escalated_at, resolved_at, confidence_json, ai_explanation_json,
+        needs_human_review, review_reason, is_human_reviewed, human_overrides_json,
+        internal_notes_json, draft_response
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
         user_id=COALESCE(excluded.user_id, conversations.user_id),
         channel=excluded.channel,
@@ -333,7 +371,22 @@ def upsert_conversation(record: ConversationRecord) -> None:
         security_detail_json=excluded.security_detail_json,
         messages_json=excluded.messages_json,
         ai_mode=excluded.ai_mode,
-        processing_ms=excluded.processing_ms;
+        processing_ms=excluded.processing_ms,
+        processing_status=excluded.processing_status,
+        assigned_to=excluded.assigned_to,
+        assigned_at=excluded.assigned_at,
+        reviewed_by=excluded.reviewed_by,
+        reviewed_at=excluded.reviewed_at,
+        escalated_at=excluded.escalated_at,
+        resolved_at=excluded.resolved_at,
+        confidence_json=excluded.confidence_json,
+        ai_explanation_json=excluded.ai_explanation_json,
+        needs_human_review=excluded.needs_human_review,
+        review_reason=excluded.review_reason,
+        is_human_reviewed=excluded.is_human_reviewed,
+        human_overrides_json=excluded.human_overrides_json,
+        internal_notes_json=excluded.internal_notes_json,
+        draft_response=excluded.draft_response;
     """, (
         record.conversation_id,
         record.user_id,
@@ -373,6 +426,21 @@ def upsert_conversation(record: ConversationRecord) -> None:
         json.dumps(messages_dicts),
         record.ai_mode,
         record.processing_ms,
+        record.processing_status,
+        record.assigned_to,
+        record.assigned_at,
+        record.reviewed_by,
+        record.reviewed_at,
+        record.escalated_at,
+        record.resolved_at,
+        json.dumps(record.confidence or {}),
+        json.dumps(record.ai_explanation or {}),
+        1 if record.needs_human_review else 0,
+        record.review_reason or "",
+        1 if record.is_human_reviewed else 0,
+        json.dumps(record.human_overrides) if record.human_overrides else None,
+        json.dumps(record.internal_notes or []),
+        record.draft_response,
     ))
 
     conn.commit()
@@ -757,4 +825,367 @@ def list_audit_logs(limit: int = 50) -> List[Dict[str, Any]]:
         d["metadata"] = _parse_json_field(d.get("metadata_json") or d.get("metadata"), {})
         result.append(d)
     return result
+
+
+# ---------------------------------------------------------------------------
+# Section 13, 14, 15: Admin Operational Review, Workflow & Internal Notes
+# ---------------------------------------------------------------------------
+
+def update_conversation_review(
+    conv_id: str,
+    reviewer_id: str,
+    reviewer_email: str,
+    overrides: Dict[str, Any],
+    reason: str = "Manual administrative review & calibration",
+) -> Optional[ConversationRecord]:
+    """
+    Applies human review corrections to a conversation record (Section 13 & 15).
+    Preserves original AI values, records timestamped audit log and human overrides history.
+    """
+    record = get_conversation(conv_id)
+    if not record:
+        return None
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    existing_overrides = record.human_overrides or {}
+    history = existing_overrides.get("history", [])
+
+    # Store baseline original AI classification if this is the first review
+    original = existing_overrides.get("original", {
+        "category": record.category,
+        "issue_label": record.issue_label,
+        "priority": record.priority,
+        "risk_level": record.security.risk_level,
+        "threat_detected": record.security.threat_detected,
+        "resolution_status": record.resolution_status,
+    })
+
+    correction_entry = {
+        "reviewer_id": reviewer_id,
+        "reviewer_email": reviewer_email,
+        "timestamp": now_iso,
+        "reason": reason,
+        "changes": overrides,
+    }
+    history.append(correction_entry)
+
+    new_overrides = {
+        "original": original,
+        "last_correction": correction_entry,
+        "history": history,
+    }
+
+    # Apply overrides to record
+    if "category" in overrides and overrides["category"]:
+        record.category = overrides["category"]
+    if "issue_label" in overrides and overrides["issue_label"]:
+        record.issue_label = overrides["issue_label"]
+    if "priority" in overrides and overrides["priority"]:
+        record.priority = overrides["priority"]
+    if "resolution_status" in overrides and overrides["resolution_status"]:
+        record.resolution_status = overrides["resolution_status"]
+    if "risk_level" in overrides and overrides["risk_level"]:
+        record.security.risk_level = overrides["risk_level"]
+        record.security.threat_detected = overrides["risk_level"] in ("High", "Critical")
+
+    record.is_human_reviewed = True
+    record.reviewed_by = reviewer_id
+    record.reviewed_at = now_iso
+    record.processing_status = "Human Reviewed"
+    record.needs_human_review = False
+    record.human_overrides = new_overrides
+
+    # Persist updated record
+    upsert_conversation(record)
+
+    # Security Audit Trail
+    log_audit_event(
+        actor_user_id=reviewer_id,
+        actor_email=reviewer_email,
+        action="CONVERSATION_REVIEW_CORRECTION",
+        target_resource_id=conv_id,
+        metadata={"reason": reason, "changes": overrides},
+    )
+
+    return record
+
+
+def update_conversation_status(
+    conv_id: str,
+    actor_id: str,
+    actor_email: str = "",
+    processing_status: Optional[str] = None,
+    resolution_status: Optional[str] = None,
+    assigned_to: Optional[str] = None,
+) -> Optional[ConversationRecord]:
+    """
+    Updates operational workflow status, resolution state, and assignee (Section 15).
+    """
+    record = get_conversation(conv_id)
+    if not record:
+        return None
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    audit_changes = {}
+
+    if processing_status and processing_status != record.processing_status:
+        audit_changes["processing_status"] = {"old": record.processing_status, "new": processing_status}
+        record.processing_status = processing_status
+        if processing_status == "Escalated":
+            record.escalated_at = now_iso
+
+    if resolution_status and resolution_status != record.resolution_status:
+        audit_changes["resolution_status"] = {"old": record.resolution_status, "new": resolution_status}
+        record.resolution_status = resolution_status
+        if resolution_status == "Resolved":
+            record.resolved_at = now_iso
+
+    if assigned_to is not None and assigned_to != record.assigned_to:
+        audit_changes["assigned_to"] = {"old": record.assigned_to, "new": assigned_to}
+        record.assigned_to = assigned_to if assigned_to != "" else None
+        record.assigned_at = now_iso if assigned_to else None
+
+    upsert_conversation(record)
+
+    if audit_changes:
+        log_audit_event(
+            actor_user_id=actor_id,
+            actor_email=actor_email,
+            action="CONVERSATION_STATUS_CHANGE",
+            target_resource_id=conv_id,
+            metadata=audit_changes,
+        )
+
+    return record
+
+
+def add_conversation_internal_note(
+    conv_id: str,
+    author_id: str,
+    author_name: str,
+    note_text: str,
+    author_email: str = "",
+) -> Optional[Dict[str, Any]]:
+    """
+    Appends an internal admin note to a conversation record (Section 14 & 15).
+    Strictly private to administrators, never returned to customer endpoints.
+    """
+    record = get_conversation(conv_id)
+    if not record:
+        return None
+
+    import uuid
+    note_id = f"note-{uuid.uuid4().hex[:8]}"
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    note_entry = {
+        "id": note_id,
+        "author_id": author_id,
+        "author_name": author_name or "Administrator",
+        "text": note_text.strip(),
+        "created_at": now_iso,
+    }
+
+    if not isinstance(record.internal_notes, list):
+        record.internal_notes = []
+    record.internal_notes.append(note_entry)
+
+    upsert_conversation(record)
+
+    log_audit_event(
+        actor_user_id=author_id,
+        actor_email=author_email,
+        action="INTERNAL_NOTE_ADDED",
+        target_resource_id=conv_id,
+        metadata={"note_id": note_id, "snippet": note_text[:60]},
+    )
+
+    return note_entry
+
+
+def set_conversation_needs_review(
+    conv_id: str,
+    actor_id: str,
+    actor_email: str = "",
+    reason: str = "Flagged for administrative review",
+) -> Optional[ConversationRecord]:
+    """Flags a conversation for manual human review queue."""
+    record = get_conversation(conv_id)
+    if not record:
+        return None
+
+    record.needs_human_review = True
+    record.review_reason = reason
+    record.processing_status = "Needs Review"
+    upsert_conversation(record)
+
+    log_audit_event(
+        actor_user_id=actor_id,
+        actor_email=actor_email,
+        action="FLAGGED_FOR_REVIEW",
+        target_resource_id=conv_id,
+        metadata={"reason": reason},
+    )
+
+    return record
+
+
+# ---------------------------------------------------------------------------
+# Section 16 & 17: Admin Intelligence Analytics & Category Drill-Down
+# ---------------------------------------------------------------------------
+
+def get_admin_category_analytics() -> Dict[str, Any]:
+    """Computes comprehensive category aggregates for Section 16."""
+    all_convs = get_all_conversations(user_id=None)
+    total = len(all_convs)
+    if total == 0:
+        return {"total_conversations": 0, "categories": []}
+
+    from collections import defaultdict
+    cat_counts = defaultdict(int)
+    cat_unresolved = defaultdict(int)
+    cat_critical = defaultdict(int)
+    cat_threats = defaultdict(int)
+
+    for c in all_convs:
+        cat = c.category or "Other"
+        cat_counts[cat] += 1
+        if c.resolution_status in ("Unresolved", "Pending"):
+            cat_unresolved[cat] += 1
+        if c.priority == "Critical" or c.security.risk_level == "Critical":
+            cat_critical[cat] += 1
+        if c.security.threat_detected:
+            cat_threats[cat] += 1
+
+    categories_list = []
+    for cat, count in sorted(cat_counts.items(), key=lambda x: x[1], reverse=True):
+        categories_list.append({
+            "category": cat,
+            "count": count,
+            "percentage": round((count / total) * 100, 1),
+            "unresolved_count": cat_unresolved[cat],
+            "critical_count": cat_critical[cat],
+            "threat_count": cat_threats[cat],
+        })
+
+    return {
+        "total_conversations": total,
+        "categories": categories_list,
+    }
+
+
+def get_admin_security_analytics() -> Dict[str, Any]:
+    """Computes threat intelligence analytics for Section 17 Security Center."""
+    all_convs = get_all_conversations(user_id=None)
+    threat_convs = [c for c in all_convs if c.security.threat_detected]
+
+    from collections import Counter
+    threat_types = Counter()
+    techniques = Counter()
+    domain_counts = Counter()
+    email_domain_counts = Counter()
+
+    for c in threat_convs:
+        if c.security.threat_type and c.security.threat_type != "None":
+            threat_types[c.security.threat_type] += 1
+        for tech in (c.security.techniques or []):
+            techniques[tech] += 1
+        for u in (c.security.urls or []):
+            if u.domain:
+                domain_counts[u.domain] += 1
+        for e in (c.security.emails or []):
+            if e.domain:
+                email_domain_counts[e.domain] += 1
+
+    top_domains = [{"domain": d, "count": c} for d, c in domain_counts.most_common(10)]
+    top_senders = [{"domain": d, "count": c} for d, c in email_domain_counts.most_common(10)]
+
+    critical_count = sum(1 for c in threat_convs if c.security.risk_level == "Critical")
+    high_count = sum(1 for c in threat_convs if c.security.risk_level == "High")
+
+    return {
+        "total_threats": len(threat_convs),
+        "critical_count": critical_count,
+        "high_count": high_count,
+        "threat_types": dict(threat_types),
+        "techniques": dict(techniques),
+        "top_domains": top_domains,
+        "top_senders": top_senders,
+        "top_attachments": [],
+    }
+
+
+def get_admin_ai_performance() -> Dict[str, Any]:
+    """Computes AI observability and monitoring metrics for Section 17."""
+    all_convs = get_all_conversations(user_id=None)
+    total = len(all_convs)
+    if total == 0:
+        return {
+            "total_analyzed": 0,
+            "gemini_count": 0,
+            "fallback_count": 0,
+            "fallback_rate": 0.0,
+            "avg_processing_ms": 0,
+            "human_corrections_count": 0,
+            "human_correction_rate": 0.0,
+            "review_queue_count": 0,
+            "model_name": settings.GEMINI_MODEL,
+            "prompt_injection_signals_caught": 0,
+        }
+
+    gemini_count = sum(1 for c in all_convs if c.ai_mode == "gemini")
+    fallback_count = sum(1 for c in all_convs if c.ai_mode == "fallback")
+    human_corrections = sum(1 for c in all_convs if c.is_human_reviewed)
+    review_queue = sum(1 for c in all_convs if c.needs_human_review)
+    total_ms = sum(c.processing_ms or 0 for c in all_convs)
+
+    prompt_injections = sum(
+        1 for c in all_convs
+        if "Prompt Injection" in (c.security.techniques or [])
+    )
+
+    return {
+        "total_analyzed": total,
+        "gemini_count": gemini_count,
+        "fallback_count": fallback_count,
+        "fallback_rate": round((fallback_count / total) * 100, 1) if total else 0.0,
+        "avg_processing_ms": int(total_ms / total) if total else 0,
+        "human_corrections_count": human_corrections,
+        "human_correction_rate": round((human_corrections / total) * 100, 1) if total else 0.0,
+        "review_queue_count": review_queue,
+        "model_name": settings.GEMINI_MODEL,
+        "prompt_injection_signals_caught": prompt_injections,
+    }
+
+
+def list_customer_overviews() -> List[Dict[str, Any]]:
+    """Returns directory of customers with ticket volume and threat statistics."""
+    profiles = list_profiles()
+    customers = [p for p in profiles if p.get("role") == "customer"]
+    all_convs = get_all_conversations(user_id=None)
+
+    result = []
+    for cust in customers:
+        cid = cust["id"]
+        c_convs = [c for c in all_convs if c.user_id == cid]
+        unresolved = sum(1 for c in c_convs if c.resolution_status in ("Unresolved", "Pending"))
+        critical = sum(1 for c in c_convs if c.priority == "Critical" or c.security.risk_level == "Critical")
+        last_act = c_convs[0].created_at if c_convs else cust.get("created_at") or datetime.now(timezone.utc).isoformat()
+
+        result.append({
+            "customer_id": cid,
+            "email": cust["email"],
+            "display_name": cust.get("display_name") or cust["email"].split("@")[0],
+            "conversation_count": len(c_convs),
+            "unresolved_count": unresolved,
+            "critical_count": critical,
+            "last_activity": last_act,
+        })
+
+    return result
+
+
+def get_conversations_by_user(user_id: str) -> List[ConversationRecord]:
+    """Retrieves all conversation records belonging to a given user."""
+    return get_all_conversations(user_id=user_id)
 

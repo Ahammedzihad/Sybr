@@ -20,6 +20,9 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/AdminUsers';
 import AdminConversations from './pages/AdminConversations';
 import AdminAuditLog from './pages/AdminAuditLog';
+import AdminSecurity from './pages/AdminSecurity';
+import AdminAnalytics from './pages/AdminAnalytics';
+import AdminCustomers from './pages/AdminCustomers';
 import { isAuthenticated, isAdmin, getUserRole } from './api';
 
 function ProtectedRoute({ children }) {
@@ -89,6 +92,9 @@ function MainLayout({ sidebarOpen, setSidebarOpen }) {
             <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
             <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
             <Route path="/admin/conversations" element={<AdminRoute><AdminConversations /></AdminRoute>} />
+            <Route path="/admin/security" element={<AdminRoute><AdminSecurity /></AdminRoute>} />
+            <Route path="/admin/analytics" element={<AdminRoute><AdminAnalytics /></AdminRoute>} />
+            <Route path="/admin/customers" element={<AdminRoute><AdminCustomers /></AdminRoute>} />
             <Route path="/admin/audit-logs" element={<AdminRoute><AdminAuditLog /></AdminRoute>} />
             <Route path="/health" element={<AdminRoute><SystemHealth /></AdminRoute>} />
             

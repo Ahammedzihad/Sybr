@@ -49,12 +49,33 @@ CREATE TABLE IF NOT EXISTS public.conversations (
 ALTER TABLE public.conversations 
 ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
 
+-- Operational lifecycle & Admin Intelligence Portal workflow columns
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS original_text TEXT;
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS processing_status TEXT DEFAULT 'AI Analyzed';
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS assigned_to TEXT;
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMPTZ;
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS reviewed_by TEXT;
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ;
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS escalated_at TIMESTAMPTZ;
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ;
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS confidence JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS ai_explanation JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS needs_human_review BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS review_reason TEXT DEFAULT '';
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS is_human_reviewed BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS human_overrides JSONB;
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS internal_notes JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS draft_response TEXT;
+
 -- Query optimization indexes
 CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON public.conversations(user_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_category ON public.conversations(category);
 CREATE INDEX IF NOT EXISTS idx_conversations_issue ON public.conversations(issue_label);
 CREATE INDEX IF NOT EXISTS idx_conversations_risk ON public.conversations(risk_level);
 CREATE INDEX IF NOT EXISTS idx_conversations_priority ON public.conversations(priority);
+CREATE INDEX IF NOT EXISTS idx_conversations_proc_status ON public.conversations(processing_status);
+CREATE INDEX IF NOT EXISTS idx_conversations_assigned_to ON public.conversations(assigned_to);
+CREATE INDEX IF NOT EXISTS idx_conversations_needs_review ON public.conversations(needs_human_review);
 CREATE INDEX IF NOT EXISTS idx_conversations_created_at ON public.conversations(created_at DESC);
 
 -- Enable Row Level Security (RLS)

@@ -197,12 +197,12 @@ curl http://localhost:8000/eval
 python -m pytest backend/tests/test_aggregates.py -k test_eval_benchmark_metrics
 ```
 
-### Run Full Backend Regression Suite (73 Automated Tests)
+### Run Full Backend Regression Suite (79 Automated Tests)
 The entire test suite runs 100% locally with zero dependencies on live Gemini quota, live Supabase, or live Gmail:
 ```bash
 python -m pytest backend/tests -v
 ```
-*Current test suite status: **73 passed**, 2 library deprecation warnings, **0 failures** in ~31s.*
+*Current test suite status: **79 passed**, 2 library deprecation warnings, **0 failures** in ~8s.*
 
 ---
 
@@ -221,23 +221,32 @@ For conference presentations, offline hackathon booths, or unreliable venue Wi-F
 
 ---
 
-## Role-Based Access Control (RBAC) & Portals
+## Role-Based Access Control (RBAC) & Dedicated Portals
 
-SybrV2 features a complete Role-Based Access Control model with dedicated portals:
+SybrV2 features an enterprise Role-Based Access Control model with dedicated user experiences and multi-tenant customer data isolation:
 
-### 1. Customer Portal (`/customer` or `/`)
-- **Dashboard**: Customer-scoped metrics (personal conversation count, recent analyses, security alert summary).
-- **Live Analyzer**: Analyze new support tickets, emails, and conversations, automatically bound to customer ownership.
-- **My Conversations**: Isolated conversation records — Customer A cannot view, inspect, or delete Customer B's records (IDOR protection).
-- **Copilot Studio**: AI-guided issue diagnosis and troubleshooting checklists scoped to customer tickets.
-- **My Account**: Profile inspection, role display (read-only), and session management.
+### 1. Customer Intelligence Portal (`/customer` or `/`)
+- **Scoped Dashboard**: Customer-specific KPIs (personal ticket count, recent analyses, security threat alerts).
+- **Live Analyzer**: Synchronous text and thread analysis with client-side PII masking, bound automatically to the customer tenant.
+- **My Conversations**: Isolated conversation records — Customer A cannot inspect, modify, or delete Customer B's records (IDOR protection).
+- **Customer Privacy Safeguards**: Customers **never** receive private internal notes, reviewer identities, or administrative deliberations (`internal_notes`, `human_overrides`, `reviewed_by` are stripped at the serialization boundary).
+- **Copilot Studio**: AI-guided issue diagnosis, screenshot forensics, and actionable troubleshooting checklists scoped to customer interactions.
+- **My Account**: Profile inspection, role display (`customer` vs `admin`), and session revocation.
 
-### 2. Admin Portal (`/admin`)
-- **Admin Overview**: System-wide telemetry, total active tenants, platform-wide threat detection rate, and real-time security alerts.
-- **User Management (`/admin/users`)**: Directory of all registered users with role promotion/demotion. Includes **Last-Admin Protection** to prevent locking the platform out.
-- **Platform Conversations (`/admin/conversations`)**: Omniscient oversight of all organizational tickets, phishing attempts, and analysis payloads.
-- **Security Audit Logs (`/admin/audit-logs`)**: Immutable event logs capturing role modifications, administrative actions, and security access attempts.
-- **System Telemetry (`/health`)**: Hardware, active database mode, AI provider status, and service health.
+### 2. Admin Intelligence Portal (`/admin`)
+- **Admin Overview (`/admin`)**: Operational control deck with 6 core KPIs (Total Evaluated, Critical Threats, Review Queue Backlog, Unresolved Inquiries, Active Tenants, Pipeline Latency) and prioritized high-risk triage tables.
+- **Review & Inbox (`/admin/conversations`)**: Filterable inbox with triage tabs (`All Tickets`, `Review Queue`, `Critical Threats`, `High Priority`, `Unresolved Followups`), multi-criteria query engines, and review status badges.
+- **Human Review & Calibration Workflow (`/conversations/:id`)**:
+  - Modal to adjust category (from the 10 canonical taxonomies), issue label (from the 16 controlled labels), priority, risk band, and resolution.
+  - **Baseline Preservation**: The baseline original AI inference is permanently preserved in the audit trail alongside reviewer IDs, timestamps, and rationales.
+  - **Private Internal Notes**: Threaded admin notes strictly isolated from customer view.
+  - **AI Response Draft Assistant**: Generates contextual, security-grounded customer replies with recommended actions and explainable rationale.
+- **SecOps Threat Center (`/admin/security`)**: Real-time cyber intelligence telemetry covering social engineering techniques (Urgency, Credential Harvesting, OTP Requests, Lookalike Domains), top malicious domains, and sender analysis.
+- **Category & AI Observability (`/admin/analytics`)**: Detailed distribution breakdown across all 10 canonical support categories, Gemini vs fallback execution shares, human calibration rates, and prompt injection defense metrics.
+- **Customer Directory & Account Oversight (`/admin/customers`)**: Multi-tenant customer accounts table with conversation counts, unresolved ticket tallies, threat encounter logs, and slide-over customer dossiers.
+- **User Management (`/admin/users`)**: Identity and role administration with **Last-Admin Lockout Protection** preventing accidental administrative revocation.
+- **Security Audit Logs (`/admin/audit-logs`)**: Immutable security audit registry recording all role modifications, review calibrations, status updates, and access denials.
+- **System Telemetry (`/health`)**: Real-time cluster health, active AI provider mode, database storage engine, and round-trip latency.
 
 ---
 
@@ -252,11 +261,21 @@ SybrV2 features a complete Role-Based Access Control model with dedicated portal
 | **Auth** | `POST` | `/auth/signup` | Public | Register new customer account (strictly defaults to `customer` role). |
 | **Auth** | `POST` | `/auth/reset-password` | Public | Request password reset email (safe enum-proof response). |
 | **Customer**| `GET` | `/customer/dashboard` | Customer/Admin | Scoped customer KPIs, recent tickets, and security alert summary. |
-| **Admin** | `GET` | `/admin/dashboard` | Admin Only | Platform-level telemetry, tenant counts, and high-risk threat breakdown. |
+| **Admin** | `GET` | `/admin/dashboard` | Admin Only | Platform-level telemetry, review queue counts, and high-risk triage tables. |
 | **Admin** | `GET` | `/admin/users` | Admin Only | User directory with identity, role, and creation timestamps. |
 | **Admin** | `PATCH`| `/admin/users/{id}/role` | Admin Only | Promote or demote user roles with Last-Admin lockout protection. |
-| **Admin** | `GET` | `/admin/audit-logs` | Admin Only | Query security audit events and administrative actions. |
+| **Admin** | `GET` | `/admin/audit-logs` | Admin Only | Query security audit events, review calibrations, and administrative actions. |
 | **Admin** | `GET` | `/admin/conversations` | Admin Only | Global conversation oversight across all platform users. |
+| **Admin** | `PATCH`| `/admin/conversations/{id}/review` | Admin Only | Submit human review corrections with baseline AI preservation and audit logging. |
+| **Admin** | `PATCH`| `/admin/conversations/{id}/status` | Admin Only | Update workflow status (`New`, `In Progress`, `Under Review`, `Escalated`, `Resolved`), resolution, or assignee. |
+| **Admin** | `POST` | `/admin/conversations/{id}/notes` | Admin Only | Add private internal admin note (isolated from customer). |
+| **Admin** | `POST` | `/admin/conversations/{id}/request-review` | Admin Only | Flag conversation for human review triage queue with custom rationale. |
+| **Admin** | `POST` | `/admin/conversations/{id}/draft-response` | Admin Only | Generate security-grounded support reply draft and recommended action. |
+| **Admin** | `GET` | `/admin/analytics/categories` | Admin Only | Category frequency, resolution rates, and threat share across all 10 canonical categories. |
+| **Admin** | `GET` | `/admin/analytics/security` | Admin Only | Threat distributions, social engineering techniques, and top indicators. |
+| **Admin** | `GET` | `/admin/analytics/ai` | Admin Only | AI observability: Gemini vs fallback rate, pipeline latency, and human correction rate. |
+| **Admin** | `GET` | `/admin/customers` | Admin Only | Customer account directory with conversation volumes and threat encounters. |
+| **Admin** | `GET` | `/admin/customers/{id}` | Admin Only | Full customer profile and conversation ticket archive. |
 | **Analysis** | `POST` | `/analyze` | Authenticated | Analyze a single customer message or thread synchronously (Call A + Call B + Security Rules). |
 | **Copilot** | `POST` | `/copilot/diagnose` | Authenticated | AI issue diagnosis, screenshot forensics, and actionable resolution checklist. |
 | **Copilot** | `GET` | `/copilot/history` | Authenticated | Retrieve user-scoped Copilot diagnostic sessions. |
@@ -265,7 +284,7 @@ SybrV2 features a complete Role-Based Access Control model with dedicated portal
 | **Gmail** | `POST` | `/gmail/sync` | Authenticated | Sync and analyze incoming inbox messages with deduplication. |
 | **Gmail** | `POST` | `/gmail/disconnect` | Authenticated | Revoke Gmail access and remove server-side tokens. |
 | **Conversations**| `GET` | `/conversations` | Authenticated | User-isolated list of processed conversations (Admin sees global list). |
-| **Conversations**| `GET` | `/conversations/{id}` | Authenticated | User-isolated conversation detail with IDOR rejection for unauthorized access. |
+| **Conversations**| `GET` | `/conversations/{id}` | Authenticated | Conversation detail with role-aware privacy (internal notes and reviewer stripped for customers). |
 | **Conversations**| `POST`| `/conversations/{id}/reanalyze` | Authenticated | Re-run security rules and Gemini intelligence on an existing ticket. |
 | **Conversations**| `DELETE`| `/conversations/{id}` | Authenticated | Remove an owned conversation from the database (or Admin global delete). |
 | **Ingestion** | `POST` | `/upload` | Authenticated | Asynchronously ingest and process CSV/JSON files containing multiple tickets. |

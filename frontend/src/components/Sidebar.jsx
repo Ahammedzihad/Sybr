@@ -17,7 +17,9 @@ import {
   User,
   Users,
   ShieldAlert,
-  Sliders
+  Sliders,
+  BarChart3,
+  Flame
 } from 'lucide-react';
 import { isOfflineMode, setOfflineMode, fetchHealth, getCurrentUser, logout, isAdmin, getUserRole } from '../api';
 
@@ -72,13 +74,15 @@ export default function Sidebar({ isOpen, onClose }) {
 
   const adminNavLinks = [
     { name: 'Admin Overview', path: '/admin', icon: LayoutDashboard, shortcut: '⌘1' },
-    { name: 'User Management', path: '/admin/users', icon: Users, shortcut: '⌘2' },
-    { name: 'All Conversations', path: '/admin/conversations', icon: MessageSquareText, shortcut: '⌘3' },
-    { name: 'Security Audit Log', path: '/admin/audit-logs', icon: ShieldAlert, shortcut: '⌘4' },
-    { name: 'System Telemetry', path: '/health', icon: Activity, shortcut: '⌘5' },
-    { name: 'Threat Analyzer', path: '/analyze', icon: Zap, shortcut: '⌘6' },
-    { name: 'Copilot Studio', path: '/copilot', icon: Bot, shortcut: '⌘7' },
-    { name: 'My Account', path: '/account', icon: User, shortcut: '⌘8' },
+    { name: 'Review & Inbox', path: '/admin/conversations', icon: MessageSquareText, shortcut: '⌘2' },
+    { name: 'SecOps Threat Center', path: '/admin/security', icon: Flame, shortcut: '⌘3' },
+    { name: 'Category & AI Analytics', path: '/admin/analytics', icon: BarChart3, shortcut: '⌘4' },
+    { name: 'Customer Directory', path: '/admin/customers', icon: Users, shortcut: '⌘5' },
+    { name: 'User Management', path: '/admin/users', icon: User, shortcut: '⌘6' },
+    { name: 'Security Audit Log', path: '/admin/audit-logs', icon: ShieldAlert, shortcut: '⌘7' },
+    { name: 'System Telemetry', path: '/health', icon: Activity, shortcut: '⌘8' },
+    { name: 'Threat Analyzer', path: '/analyze', icon: Zap, shortcut: '⌘9' },
+    { name: 'Copilot Studio', path: '/copilot', icon: Bot, shortcut: '⌘0' },
   ];
 
   const navLinks = admin ? adminNavLinks : customerNavLinks;
