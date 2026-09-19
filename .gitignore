@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Production builds
+dist/
+frontend/dist/
+
+# Python cache & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+
+# Environment variables & secrets (NEVER commit to git)
+.env
+.env.*
+.env.local
+*.env
+backend/.env
+backend/.env.*
+frontend/.env
+frontend/.env.*
+frontend/.env.local
+
+# Preserve safe example files
+!.env.example
+!backend/.env.example
+!frontend/.env.example
+!*.env.example
+
+# Local SQLite databases & test logs
+data/local_cache.db
+*.db
+*.sqlite3
+*.log
+frontend/vite.log
+
+# Operating System & IDE artifacts
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
