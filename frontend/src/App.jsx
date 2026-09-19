@@ -63,9 +63,9 @@ function MainLayout({ sidebarOpen, setSidebarOpen }) {
   return (
     <div className="h-screen w-screen bg-[#fafafa] text-neutral-900 flex overflow-hidden font-sans selection:bg-neutral-900 selection:text-white antialiased">
       {/* Collapsible Left Navigation Sidebar */}
-      <Sidebar 
-        isOpen={sidebarOpen} 
-        onClose={() => setSidebarOpen(false)} 
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
       {/* Main Application Workspace */}
@@ -79,7 +79,7 @@ function MainLayout({ sidebarOpen, setSidebarOpen }) {
             {/* Dashboard: Admin lands on AdminDashboard or Customer on CustomerDashboard */}
             <Route path="/" element={admin ? <AdminDashboard /> : <CustomerDashboard />} />
             <Route path="/customer" element={<CustomerDashboard />} />
-            
+
             {/* Standard Sybr Workstation Pages */}
             <Route path="/conversations" element={<Conversations />} />
             <Route path="/conversations/:id" element={<ConversationDetail />} />
@@ -87,7 +87,7 @@ function MainLayout({ sidebarOpen, setSidebarOpen }) {
             <Route path="/copilot" element={<CopilotStudio />} />
             <Route path="/upload" element={<Upload />} />
             <Route path="/account" element={<Account />} />
-            
+
             {/* Dedicated Admin Portal Routes */}
             <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
             <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
@@ -97,7 +97,7 @@ function MainLayout({ sidebarOpen, setSidebarOpen }) {
             <Route path="/admin/customers" element={<AdminRoute><AdminCustomers /></AdminRoute>} />
             <Route path="/admin/audit-logs" element={<AdminRoute><AdminAuditLog /></AdminRoute>} />
             <Route path="/health" element={<AdminRoute><SystemHealth /></AdminRoute>} />
-            
+
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
@@ -130,9 +130,9 @@ export default function App() {
           path="/*"
           element={
             <ProtectedRoute>
-              <MainLayout 
-                sidebarOpen={sidebarOpen} 
-                setSidebarOpen={setSidebarOpen} 
+              <MainLayout
+                sidebarOpen={sidebarOpen}
+                setSidebarOpen={setSidebarOpen}
               />
             </ProtectedRoute>
           }
@@ -141,3 +141,5 @@ export default function App() {
     </BrowserRouter>
   );
 }
+
+//hello
