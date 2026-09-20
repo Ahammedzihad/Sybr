@@ -5,7 +5,10 @@
 [![React](https://img.shields.io/badge/React-19.0-61DAFB.svg)](https://react.dev/)
 [![TailwindCSS](https://img.shields.io/badge/TailwindCSS-4.0-38B2AC.svg)](https://tailwindcss.com/)
 [![Vite](https://img.shields.io/badge/Vite-6.0-646CFF.svg)](https://vitejs.dev/)
+[![Deployment](https://img.shields.io/badge/Vercel-Live%20Demo-000000?logo=vercel&logoColor=white)](https://sybrv2.vercel.app/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+> 🚀 **Live Demo**: [https://sybrv2.vercel.app/](https://sybrv2.vercel.app/)
 
 An end-to-end, production-grade intelligence platform that ingests customer support interactions (email, chat, web tickets, SMS/WhatsApp) and simultaneously generates **Customer Support Intelligence** and **Cybersecurity Threat Intelligence**.
 
