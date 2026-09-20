@@ -318,29 +318,42 @@ SybrV2 features an enterprise Role-Based Access Control model with dedicated use
 
 ---
 
-## Deployment Guide (Render & Vercel)
+## Deployment Guide (Vercel & Render)
 
-### Backend Deployment (Render)
-1. Fork or push this repository to GitHub.
-2. Log in to [Render](https://render.com/) and click **New +** -> **Blueprint**.
-3. Connect your repository. Render will automatically detect `render.yaml`.
-4. Add environment variables in the Render Dashboard:
-   - `GEMINI_API_KEY` (Optional)
-   - `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (Optional)
-5. Click **Apply Blueprint**. The backend will be available at `https://sybr-backend.onrender.com`.
+### Option 1: Full-Stack Deployment on Vercel (Frontend + FastAPI Backend)
+Deploy both the React/Vite frontend and FastAPI Python backend together on Vercel in a single project using serverless functions:
 
-### Frontend Deployment (Vercel)
+1. Import your GitHub repository into [Vercel](https://vercel.com/).
+2. Keep the **Root Directory** as the root of the repository (`./`).
+3. Vercel automatically detects `vercel.json`, configuring:
+   - `api/index.py`: Python Serverless API for all FastAPI endpoints (`/health`, `/analyze`, `/auth/*`, `/conversations`, etc.)
+   - `frontend/`: Static Vite React production build
+4. In the Vercel Project Settings, add any desired Environment Variables:
+   - `GEMINI_API_KEY`: (Optional) Your Google Gemini API key
+   - `SUPABASE_URL`: (Optional) Your Supabase project URL
+   - `SUPABASE_SERVICE_ROLE_KEY`: (Optional) Your Supabase service role key
+   - `SUPABASE_ANON_KEY`: (Optional) Your Supabase anon key
+5. Click **Deploy**. Both the frontend and backend will be live on the same domain (e.g. `https://your-project.vercel.app`)!
+
+### Option 2: Frontend on Vercel + Backend on Render
+
+#### Backend Deployment (Render)
+1. Log in to [Render](https://render.com/) and click **New +** -> **Blueprint**.
+2. Connect your repository. Render will automatically detect `render.yaml`.
+3. Add environment variables (`GEMINI_API_KEY`, `SUPABASE_URL`, etc.).
+4. The backend will be available at `https://sybr-backend.onrender.com`.
+
+#### Frontend Deployment (Vercel)
 - **Live Production URL**: [https://frontend-xyz-8fb6.vercel.app/](https://frontend-xyz-8fb6.vercel.app/)
 
-1. Log in to [Vercel](https://vercel.com/) and import your GitHub repository.
-2. Select the `frontend` root directory.
-3. Configure the build settings:
+1. If deploying only the frontend, set **Root Directory** to `frontend` in Vercel settings.
+2. Configure build settings:
    - **Framework Preset**: Vite
    - **Build Command**: `npm run build`
    - **Output Directory**: `dist`
-4. Add the Environment Variable:
+3. Add the Environment Variable:
    - `VITE_API_URL`: `https://sybr-backend.onrender.com`
-5. Click **Deploy**. Vercel uses `frontend/vercel.json` to handle client-side routing.
+4. Click **Deploy**.
 
 ---
 

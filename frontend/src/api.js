@@ -6,7 +6,7 @@
  */
 import { createClient } from '@supabase/supabase-js';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '');
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8000' : (typeof window !== 'undefined' ? window.location.origin : ''))).replace(/\/+$/, '');
 
 // ---------------------------------------------------------------------------
 // Supabase Client Management (Strictly from Frontend Environment)
@@ -57,7 +57,7 @@ export function getSupabaseClient() {
             }
 
             // Also check backend /auth/me if available
-            if (API_BASE && !API_BASE.startsWith(window.location.origin)) {
+            if (API_BASE) {
               try {
                 const res = await fetch(`${API_BASE}/auth/me`, {
                   headers: { Authorization: `Bearer ${session.access_token}` },
@@ -252,7 +252,7 @@ export async function login(email, password) {
 
       // Validate with backend /auth/me server-side if backend is configured
       let userProfile = null;
-      if (API_BASE && !API_BASE.startsWith(window.location.origin)) {
+      if (API_BASE) {
         try {
           const profileRes = await fetch(`${API_BASE}/auth/me`, {
             headers: { Authorization: `Bearer ${token}` },

@@ -6,11 +6,6 @@ import re
 import string
 from typing import List, Tuple
 from collections import Counter
-from sklearn.feature_extraction.text import TfidfVectorizer
-from nltk.stem import PorterStemmer
-
-stemmer = PorterStemmer()
-
 # ---------------------------------------------------------------------------
 # PII Masking Regular Expressions
 # ---------------------------------------------------------------------------

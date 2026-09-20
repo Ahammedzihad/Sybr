@@ -11,7 +11,10 @@ from app.config import settings
 from app.schemas import ConversationRecord, Message, SummaryDetail, SecurityDetail
 
 # SQLite Local Database Path
-SQLITE_DB_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data", "local_cache.db")
+if os.environ.get("VERCEL"):
+    SQLITE_DB_PATH = "/tmp/local_cache.db"
+else:
+    SQLITE_DB_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data", "local_cache.db")
 
 
 def init_sqlite_db():
