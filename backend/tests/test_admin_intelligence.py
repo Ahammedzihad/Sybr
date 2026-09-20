@@ -3,6 +3,7 @@ Unit and integration tests for the SybrV2 Admin Intelligence Portal,
 human review workflow, operational status/assignments, internal notes,
 data isolation, and category/security/AI analytics.
 """
+import uuid
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
@@ -50,7 +51,7 @@ def create_test_conversation(conv_id: str, user_id: str = "demo-user-001") -> Co
 
 def test_admin_review_correction_workflow():
     """Verify administrator can review, correct, and audit a conversation."""
-    conv_id = "REV-TEST-001"
+    conv_id = f"REV-TEST-{uuid.uuid4().hex[:8]}"
     create_test_conversation(conv_id)
 
     # 1. Customer cannot call review endpoint
@@ -100,7 +101,7 @@ def test_admin_review_correction_workflow():
 
 def test_admin_status_and_assignment_workflow():
     """Verify administrator can update status, assign, and escalate."""
-    conv_id = "STATUS-TEST-001"
+    conv_id = f"STATUS-TEST-{uuid.uuid4().hex[:8]}"
     create_test_conversation(conv_id)
 
     # Customer forbidden
@@ -131,7 +132,7 @@ def test_admin_status_and_assignment_workflow():
 
 def test_admin_internal_notes_and_privacy_isolation():
     """Verify internal notes are saved, audited, and strictly stripped from customer views."""
-    conv_id = "NOTE-TEST-001"
+    conv_id = f"NOTE-TEST-{uuid.uuid4().hex[:8]}"
     create_test_conversation(conv_id, user_id="demo-user-001")
 
     # 1. Customer cannot add an internal note
@@ -171,7 +172,7 @@ def test_admin_internal_notes_and_privacy_isolation():
 
 def test_request_review_and_draft_response():
     """Verify request review queue flagging and draft response generation."""
-    conv_id = "DRAFT-TEST-001"
+    conv_id = f"DRAFT-TEST-{uuid.uuid4().hex[:8]}"
     create_test_conversation(conv_id)
 
     # Flag for review
