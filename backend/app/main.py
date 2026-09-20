@@ -4,7 +4,7 @@ Provides CORS, health checks, ingestion, live analyzer, and conversation APIs.
 """
 import json
 from typing import List, Optional, Dict, Any
-from fastapi import FastAPI, BackgroundTasks, UploadFile, File, Query, HTTPException, status, Depends
+from fastapi import FastAPI, BackgroundTasks, UploadFile, File, Query, HTTPException, status, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
@@ -101,6 +101,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def strip_api_prefix(request: Request, call_next):
+    """Allows all endpoints to be accessed with or without the /api prefix."""
+    if request.url.path.startswith("/api/"):
+        request.scope["path"] = request.url.path[4:]
+    elif request.url.path == "/api":
+        request.scope["path"] = "/"
+    return await call_next(request)
 
 
 @app.get("/health", response_model=HealthResponse, tags=["Health"])

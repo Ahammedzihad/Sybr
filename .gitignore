@@ -43,3 +43,4 @@ frontend/vite.log
 Thumbs.db
 .vscode/
 .idea/
+.vercel

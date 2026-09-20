@@ -3,6 +3,7 @@ Section 9 & 13. Database Layer: Supabase (Postgres) with Automatic Local SQLite 
 Provides unified persistence for conversations and messages, supporting local offline mode.
 """
 import json
+import logging
 import os
 import sqlite3
 from typing import List, Dict, Any, Optional, Tuple
@@ -10,8 +11,25 @@ from datetime import datetime, timezone
 from app.config import settings
 from app.schemas import ConversationRecord, Message, SummaryDetail, SecurityDetail
 
+logger = logging.getLogger("db")
+
+VALID_SUPABASE_COLUMNS = {
+    "id", "channel", "created_at", "source", "raw_text_masked", "text_hash",
+    "category", "issue_label", "customer_issue", "sentiment", "emotion",
+    "emotion_intensity", "is_angry", "urgency", "priority", "priority_reason",
+    "resolution_status", "resolution_reason", "summary", "keywords",
+    "threat_detected", "threat_type", "social_engineering", "techniques",
+    "suspicious_url", "suspicious_domain", "suspicious_email",
+    "suspicious_attachment", "credential_request", "otp_request", "rule_score",
+    "risk_level", "risk_reasons", "recommended_action", "security_detail",
+    "messages", "ai_mode", "processing_ms",
+}
+
 # SQLite Local Database Path
-SQLITE_DB_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data", "local_cache.db")
+if os.environ.get("VERCEL"):
+    SQLITE_DB_PATH = "/tmp/local_cache.db"
+else:
+    SQLITE_DB_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data", "local_cache.db")
 
 
 def init_sqlite_db():
@@ -312,9 +330,10 @@ def upsert_conversation(record: ConversationRecord) -> None:
                 "internal_notes": record.internal_notes,
                 "draft_response": record.draft_response,
             }
-            sb.table("conversations").upsert(payload).execute()
-        except Exception:
-            pass  # Fall back to local SQLite
+            clean_payload = {k: v for k, v in payload.items() if k in VALID_SUPABASE_COLUMNS}
+            sb.table("conversations").upsert(clean_payload).execute()
+        except Exception as e:
+            logger.warning(f"Supabase upsert failed, falling back to local storage: {e}")
 
     # SQLite Persistence (local dual-backup)
     conn = sqlite3.connect(SQLITE_DB_PATH)
@@ -449,6 +468,7 @@ def upsert_conversation(record: ConversationRecord) -> None:
 
 def get_conversation(conv_id: str, user_id: Optional[str] = None) -> Optional[ConversationRecord]:
     """Retrieves a single conversation by ID from Supabase or local SQLite, scoped by user_id if present."""
+    record = None
     sb = get_supabase_client()
     if sb:
         try:
@@ -457,24 +477,44 @@ def get_conversation(conv_id: str, user_id: Optional[str] = None) -> Optional[Co
                 query = query.eq("user_id", user_id)
             res = query.execute()
             if res.data and len(res.data) > 0:
-                return row_to_record(res.data[0])
+                record = row_to_record(res.data[0])
         except Exception:
             pass
 
-    conn = sqlite3.connect(SQLITE_DB_PATH)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
+    # Read local SQLite row to merge administrative workflow fields (e.g. internal_notes, human_overrides)
+    try:
+        conn = sqlite3.connect(SQLITE_DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        if user_id:
+            cursor.execute("SELECT * FROM conversations WHERE id = ? AND (user_id = ? OR user_id IS NULL)", (conv_id, user_id))
+        else:
+            cursor.execute("SELECT * FROM conversations WHERE id = ?", (conv_id,))
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            local_rec = row_to_record(dict(row))
+            if not record:
+                return local_rec
+            # Merge fields that might not be persisted in basic Supabase schema
+            if local_rec.internal_notes and not record.internal_notes:
+                record.internal_notes = local_rec.internal_notes
+            if local_rec.human_overrides and not record.human_overrides:
+                record.human_overrides = local_rec.human_overrides
+            if local_rec.user_id and not record.user_id:
+                record.user_id = local_rec.user_id
+            if local_rec.draft_response and not record.draft_response:
+                record.draft_response = local_rec.draft_response
+            if local_rec.needs_human_review and not record.needs_human_review:
+                record.needs_human_review = local_rec.needs_human_review
+            if local_rec.is_human_reviewed and not record.is_human_reviewed:
+                record.is_human_reviewed = local_rec.is_human_reviewed
+            if local_rec.review_reason and not record.review_reason:
+                record.review_reason = local_rec.review_reason
+    except Exception:
+        pass
 
-    if user_id:
-        cursor.execute("SELECT * FROM conversations WHERE id = ? AND (user_id = ? OR user_id IS NULL)", (conv_id, user_id))
-    else:
-        cursor.execute("SELECT * FROM conversations WHERE id = ?", (conv_id,))
-    row = cursor.fetchone()
-    conn.close()
-
-    if not row:
-        return None
-    return row_to_record(dict(row))
+    return record
 
 
 def list_conversations(

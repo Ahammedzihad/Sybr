@@ -323,7 +323,7 @@ export default function AdminDashboard() {
 
             <div className="flex items-center justify-between py-1.5 border-b border-neutral-50">
               <span className="text-neutral-500">Primary AI Model</span>
-              <span className="font-mono text-neutral-700">{data?.ai_status?.model || 'gemini-2.5-flash'}</span>
+              <span className="font-mono text-neutral-700">{data?.ai_status?.model || 'gemini-3.6-flash'}</span>
             </div>
 
             <div className="flex items-center justify-between py-1.5 border-b border-neutral-50">

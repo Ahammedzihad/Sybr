@@ -6,7 +6,7 @@
  */
 import { createClient } from '@supabase/supabase-js';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8001' : '');
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8001' : '/api')).replace(/\/+$/, '');
 
 // ---------------------------------------------------------------------------
 // Supabase Client Management (Strictly from Frontend Environment)
@@ -82,7 +82,7 @@ export function getSupabaseClient() {
             }
 
             // Also check backend /auth/me if available
-            if (API_BASE && !API_BASE.startsWith(window.location.origin)) {
+            if (API_BASE) {
               try {
                 const res = await fetch(`${API_BASE}/auth/me`, {
                   headers: { Authorization: `Bearer ${session.access_token}` },
@@ -136,10 +136,6 @@ export function isOfflineMode() {
   const stored = localStorage.getItem('sybr_offline_mode');
   if (stored !== null) {
     return stored === 'true';
-  }
-  // In production without an explicit live backend URL, default to safe offline demo mode
-  if (import.meta.env.PROD && !API_BASE) {
-    return true;
   }
   return false;
 }
@@ -283,7 +279,7 @@ export async function login(email, password) {
 
       // Validate with backend /auth/me server-side if backend is configured
       let userProfile = null;
-      if (API_BASE && !API_BASE.startsWith(window.location.origin)) {
+      if (API_BASE) {
         try {
           const profileRes = await fetch(`${API_BASE}/auth/me`, {
             headers: { Authorization: `Bearer ${token}` },
@@ -534,7 +530,7 @@ export async function fetchAdminDashboard() {
       high_risk_threats: 6,
       ai_status: {
         provider: 'Google Gemini',
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.5-flash-lite',
         fallback: 'Rule-Based Deterministic Engine',
         status: 'online',
       },
@@ -752,7 +748,7 @@ export async function fetchAdminAIPerformance() {
       human_corrections_count: 5,
       human_correction_rate: 10.4,
       review_queue_count: 3,
-      model_name: 'gemini-2.5-flash',
+      model_name: 'gemini-3.5-flash-lite',
       prompt_injection_signals_caught: 2,
     };
   }

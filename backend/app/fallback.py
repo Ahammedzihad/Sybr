@@ -370,6 +370,7 @@ def fallback_analyze(
         summary=summary,
         security=updated_security,
         ai_mode="fallback",
+        model="rule-based-heuristics",
         processing_ms=elapsed_ms,
         source=source,
         raw_text_masked=raw_text_masked,

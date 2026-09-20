@@ -121,6 +121,7 @@ class ConversationRecord(BaseModel):
     summary: SummaryDetail = Field(default_factory=SummaryDetail)
     security: SecurityDetail = Field(default_factory=SecurityDetail)
     ai_mode: Literal["gemini", "fallback"] = "gemini"
+    model: Optional[str] = None
     processing_ms: int = 0
 
     # Optional metadata for persistence/display
@@ -440,7 +441,7 @@ class AdminAIPerformanceResponse(BaseModel):
     human_corrections_count: int
     human_correction_rate: float
     review_queue_count: int
-    model_name: str = "gemini-2.5-flash"
+    model_name: str = "gemini-3.6-flash"
     prompt_injection_signals_caught: int = 0
 
 
