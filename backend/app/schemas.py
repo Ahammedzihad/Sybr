@@ -121,6 +121,7 @@ class ConversationRecord(BaseModel):
     summary: SummaryDetail = Field(default_factory=SummaryDetail)
     security: SecurityDetail = Field(default_factory=SecurityDetail)
     ai_mode: Literal["gemini", "fallback"] = "gemini"
+    model: Optional[str] = None
     processing_ms: int = 0
 
     # Optional metadata for persistence/display

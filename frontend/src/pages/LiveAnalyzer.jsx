@@ -191,7 +191,7 @@ export default function LiveAnalyzer() {
                   : 'bg-amber-50 text-amber-800 border-amber-300'
               }`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${result.ai_mode === 'gemini' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-                {result.ai_mode === 'gemini' ? 'Gemini 2.5 Flash' : 'Rule-Based Fallback (Offline / Quota Fallback)'}
+                {result.ai_mode === 'gemini' ? (result.model ? `Gemini (${result.model})` : 'Gemini AI') : 'Rule-Based Fallback (Offline / Quota Fallback)'}
               </span>
             </div>
             {result.processing_ms && (

@@ -7,7 +7,7 @@ import hashlib
 import json
 import logging
 import time
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 from google import genai
 from google.genai import types
 from pydantic import ValidationError
@@ -79,6 +79,14 @@ A genuine customer complaining about a scam is NOT a threat; a message asking so
 Recommended action must be concrete (e.g. "Escalate to security team; do not click the link or disclose credentials")."""
 
 
+def get_candidate_models() -> List[str]:
+    """Returns ordered list of candidate models for fallback."""
+    primary = (settings.GEMINI_MODEL or "gemini-3.5-flash-lite").strip()
+    fallbacks = ["gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-2.5-flash"]
+    ordered = [primary] + [m for m in fallbacks if m != primary]
+    return ordered
+
+
 # ---------------------------------------------------------------------------
 # Call A: Customer Intelligence Execution
 # ---------------------------------------------------------------------------
@@ -86,40 +94,42 @@ Recommended action must be concrete (e.g. "Escalate to security team; do not cli
 def run_gemini_call_a(
     client: genai.Client,
     raw_text: str,
-    max_retries: int = 3,
-) -> CustomerIntelligenceOutput:
-    """Executes Call A for customer support intelligence with structured JSON output."""
+) -> Tuple[CustomerIntelligenceOutput, str]:
+    """Executes Call A for customer support intelligence with structured JSON output and multi-model fallback."""
     cache_key = compute_sha256(raw_text)
     if cache_key in _CACHE_CALL_A:
-        return _CACHE_CALL_A[cache_key]
+        cached = _CACHE_CALL_A[cache_key]
+        return cached, getattr(cached, "_used_model", settings.GEMINI_MODEL)
 
     prompt = f"{CALL_A_SYSTEM_PROMPT}\n\n<conversation>\n{raw_text}\n</conversation>"
+    candidate_models = get_candidate_models()
+    last_error = None
 
-    for attempt in range(max_retries):
+    for model_name in candidate_models:
         try:
             response = client.models.generate_content(
-                model=settings.GEMINI_MODEL,
+                model=model_name,
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     temperature=0.1,
                     response_mime_type="application/json",
                     response_schema=CustomerIntelligenceOutput,
+                    automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
                 ),
             )
-            # Parse structured JSON output
             result_json = json.loads(response.text)
             parsed = CustomerIntelligenceOutput(**result_json)
+            parsed._used_model = model_name
             _CACHE_CALL_A[cache_key] = parsed
-            return parsed
+            return parsed, model_name
         except Exception as e:
-            err_str = str(e)
-            logger.warning(f"Call A attempt {attempt + 1} failed: {e}")
-            if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
-                raise e  # Fast fallback to deterministic engine
-            if attempt < max_retries - 1:
-                time.sleep(1 + attempt)
-            else:
-                raise e
+            last_error = e
+            logger.warning(f"Call A failed with model '{model_name}': {e}")
+            continue
+
+    if last_error:
+        raise last_error
+    raise RuntimeError("All Gemini candidate models failed for Call A.")
 
 
 # ---------------------------------------------------------------------------
@@ -130,12 +140,12 @@ def run_gemini_call_b(
     client: genai.Client,
     raw_text: str,
     rule_findings: SecurityDetail,
-    max_retries: int = 3,
-) -> SecurityIntelligenceOutput:
-    """Executes Call B for cybersecurity threat intelligence using deterministic evidence."""
+) -> Tuple[SecurityIntelligenceOutput, str]:
+    """Executes Call B for cybersecurity threat intelligence with multi-model fallback."""
     cache_key = compute_sha256(raw_text + rule_findings.model_dump_json())
     if cache_key in _CACHE_CALL_B:
-        return _CACHE_CALL_B[cache_key]
+        cached = _CACHE_CALL_B[cache_key]
+        return cached, getattr(cached, "_used_model", settings.GEMINI_MODEL)
 
     evidence_dict = {
         "rule_score": rule_findings.rule_score,
@@ -159,30 +169,34 @@ def run_gemini_call_b(
         f"<conversation>\n{raw_text}\n</conversation>"
     )
 
-    for attempt in range(max_retries):
+    candidate_models = get_candidate_models()
+    last_error = None
+
+    for model_name in candidate_models:
         try:
             response = client.models.generate_content(
-                model=settings.GEMINI_MODEL,
+                model=model_name,
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     temperature=0.1,
                     response_mime_type="application/json",
                     response_schema=SecurityIntelligenceOutput,
+                    automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
                 ),
             )
             result_json = json.loads(response.text)
             parsed = SecurityIntelligenceOutput(**result_json)
+            parsed._used_model = model_name
             _CACHE_CALL_B[cache_key] = parsed
-            return parsed
+            return parsed, model_name
         except Exception as e:
-            err_str = str(e)
-            logger.warning(f"Call B attempt {attempt + 1} failed: {e}")
-            if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
-                raise e  # Fast fallback to deterministic engine
-            if attempt < max_retries - 1:
-                time.sleep(1 + attempt)
-            else:
-                raise e
+            last_error = e
+            logger.warning(f"Call B failed with model '{model_name}': {e}")
+            continue
+
+    if last_error:
+        raise last_error
+    raise RuntimeError("All Gemini candidate models failed for Call B.")
 
 
 # ---------------------------------------------------------------------------
@@ -221,10 +235,19 @@ def analyze_with_gemini_or_fallback(
 
     try:
         # Call A: Customer Intelligence
-        call_a_res = run_gemini_call_a(client, raw_text_masked)
+        res_a = run_gemini_call_a(client, raw_text_masked)
+        if isinstance(res_a, tuple):
+            call_a_res, model_used = res_a
+        else:
+            call_a_res = res_a
+            model_used = getattr(res_a, "_used_model", settings.GEMINI_MODEL)
 
         # Call B: Security Intelligence
-        call_b_res = run_gemini_call_b(client, raw_text_masked, rule_security)
+        res_b = run_gemini_call_b(client, raw_text_masked, rule_security)
+        if isinstance(res_b, tuple):
+            call_b_res, _ = res_b
+        else:
+            call_b_res = res_b
 
         # Merge Call B into SecurityDetail
         # AI can add techniques, elevate risk, or add context
@@ -286,6 +309,7 @@ def analyze_with_gemini_or_fallback(
             summary=call_a_res.summary,
             security=final_security,
             ai_mode="gemini",
+            model=model_used,
             processing_ms=elapsed_ms,
             source=source,
             raw_text_masked=raw_text_masked,

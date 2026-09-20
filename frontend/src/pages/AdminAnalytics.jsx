@@ -264,7 +264,7 @@ export default function AdminAnalytics() {
                 <div className="flex justify-between py-1 border-b border-neutral-100">
                   <span className="text-neutral-500">Primary Inference Engine</span>
                   <span className="font-mono font-medium text-neutral-800">
-                    {aiData?.model_name || 'gemini-2.5-flash'}
+                    {aiData?.model_name || 'gemini-3.6-flash'}
                   </span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-neutral-100">
