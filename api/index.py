@@ -13,11 +13,4 @@ if backend_dir not in sys.path:
 if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
-from fastapi import FastAPI
-from app.main import app as main_app
-
-# Create Vercel ASGI serverless handler
-# Mounts main_app at both '/api' and '/' to handle any routed path seamlessly
-app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
-app.mount("/api", main_app)
-app.mount("/", main_app)
+from app.main import app

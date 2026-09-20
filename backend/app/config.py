@@ -81,7 +81,7 @@ TECHNIQUES: List[str] = [
 class Settings:
     """Application settings loaded from environment variables."""
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "").strip()
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.6-flash").strip()
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "").strip()
     SUPABASE_SERVICE_ROLE_KEY: str = (
         os.getenv("SUPABASE_SERVICE_ROLE_KEY")

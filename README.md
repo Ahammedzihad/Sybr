@@ -5,10 +5,10 @@
 [![React](https://img.shields.io/badge/React-19.0-61DAFB.svg)](https://react.dev/)
 [![TailwindCSS](https://img.shields.io/badge/TailwindCSS-4.0-38B2AC.svg)](https://tailwindcss.com/)
 [![Vite](https://img.shields.io/badge/Vite-6.0-646CFF.svg)](https://vitejs.dev/)
-[![Deployment](https://img.shields.io/badge/Vercel-Live%20Demo-000000?logo=vercel&logoColor=white)](https://frontend-xyz-8fb6.vercel.app/)
+[![Deployment](https://img.shields.io/badge/Vercel-Live%20Demo-000000?logo=vercel&logoColor=white)](https://sybr-six.vercel.app/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-> 🚀 **Live Demo**: [https://frontend-xyz-8fb6.vercel.app/](https://frontend-xyz-8fb6.vercel.app/)
+> 🚀 **Live Demo Application**: [https://sybr-six.vercel.app/](https://sybr-six.vercel.app/)
 
 An end-to-end, production-grade intelligence platform that ingests customer support interactions (email, chat, web tickets, SMS/WhatsApp) and simultaneously generates **Customer Support Intelligence** and **Cybersecurity Threat Intelligence**.
 
@@ -333,7 +333,7 @@ Deploy both the React/Vite frontend and FastAPI Python backend together on Verce
    - `SUPABASE_URL`: (Optional) Your Supabase project URL
    - `SUPABASE_SERVICE_ROLE_KEY`: (Optional) Your Supabase service role key
    - `SUPABASE_ANON_KEY`: (Optional) Your Supabase anon key
-5. Click **Deploy**. Both the frontend and backend will be live on the same domain (e.g. `https://your-project.vercel.app`)!
+5. Click **Deploy**. Both the frontend and backend will be live on the same domain (e.g. `https://sybr-six.vercel.app`)!
 
 ### Option 2: Frontend on Vercel + Backend on Render
 
@@ -344,7 +344,7 @@ Deploy both the React/Vite frontend and FastAPI Python backend together on Verce
 4. The backend will be available at `https://sybr-backend.onrender.com`.
 
 #### Frontend Deployment (Vercel)
-- **Live Production URL**: [https://frontend-xyz-8fb6.vercel.app/](https://frontend-xyz-8fb6.vercel.app/)
+- **Live Production URL**: [https://sybr-six.vercel.app/](https://sybr-six.vercel.app/)
 
 1. If deploying only the frontend, set **Root Directory** to `frontend` in Vercel settings.
 2. Configure build settings:

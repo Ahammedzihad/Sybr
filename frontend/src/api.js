@@ -6,7 +6,7 @@
  */
 import { createClient } from '@supabase/supabase-js';
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8000' : (typeof window !== 'undefined' ? window.location.origin : ''))).replace(/\/+$/, '');
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8000' : (typeof window !== 'undefined' ? `${window.location.origin}/api` : ''))).replace(/\/+$/, '');
 
 // ---------------------------------------------------------------------------
 // Supabase Client Management (Strictly from Frontend Environment)
