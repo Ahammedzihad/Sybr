@@ -178,9 +178,21 @@ async def reset_password(req: AuthResetPasswordRequest):
     if not settings.ENABLE_PASSWORD_RESET:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Password reset is currently disabled.",
+            detail="Password reset is currently disabled for this prototype.",
         )
     return request_password_reset(req)
+
+
+@app.get("/auth/config", tags=["Authentication"])
+async def auth_config():
+    """
+    Returns public Supabase configuration for client-side SDK bootstrap.
+    Never returns service role keys or sensitive credentials.
+    """
+    return {
+        "supabase_url": settings.SUPABASE_URL,
+        "supabase_anon_key": settings.SUPABASE_ANON_KEY,
+    }
 
 
 # ---------------------------------------------------------------------------

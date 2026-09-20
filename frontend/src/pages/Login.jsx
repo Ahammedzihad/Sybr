@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { ShieldCheck, Lock, Mail, ArrowRight, AlertCircle, CheckCircle2, X, Sparkles, ShieldAlert } from 'lucide-react';
+import { ShieldCheck, Lock, Mail, ArrowRight, AlertCircle, CheckCircle2, X } from 'lucide-react';
 import { login } from '../api';
 import Button from '../components/ui/Button';
 
@@ -55,36 +55,6 @@ export default function Login() {
       routeAfterLogin(res.user);
     } catch (err) {
       setError(err.message || 'Invalid email or password.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleQuickCustomerDemo = async () => {
-    setError('');
-    setEmail('customer@sybr.local');
-    setPassword('CustomerDemo2026!');
-    setLoading(true);
-    try {
-      const res = await login('customer@sybr.local', 'CustomerDemo2026!');
-      routeAfterLogin(res.user);
-    } catch (err) {
-      setError(err.message || 'Customer demo login failed.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleQuickAdminDemo = async () => {
-    setError('');
-    setEmail('admin@sybr.local');
-    setPassword('AdminSuper2026!');
-    setLoading(true);
-    try {
-      const res = await login('admin@sybr.local', 'AdminSuper2026!');
-      routeAfterLogin(res.user);
-    } catch (err) {
-      setError(err.message || 'Admin demo login failed.');
     } finally {
       setLoading(false);
     }
@@ -214,36 +184,6 @@ export default function Login() {
             <Link to="/signup" className="text-[#0071e3] font-medium hover:underline">
               Create Customer Account
             </Link>
-          </div>
-
-          <div className="relative flex items-center justify-center my-2">
-            <div className="border-t border-neutral-200 w-full" />
-            <span className="bg-white px-3 text-[10px] uppercase font-semibold text-neutral-400 absolute">
-              Quick 1-Click Evaluation
-            </span>
-          </div>
-
-          {/* Quick Demo Mode 1-Click Buttons */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-            <button
-              type="button"
-              onClick={handleQuickCustomerDemo}
-              disabled={loading}
-              className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 text-neutral-800 text-xs font-medium transition active:scale-[0.99] cursor-pointer"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Customer Demo</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleQuickAdminDemo}
-              disabled={loading}
-              className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 text-neutral-800 text-xs font-medium transition active:scale-[0.99] cursor-pointer"
-            >
-              <ShieldAlert className="w-3.5 h-3.5 text-violet-600" />
-              <span>Admin Demo</span>
-            </button>
           </div>
 
         </div>

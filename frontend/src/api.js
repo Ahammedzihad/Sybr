@@ -6,21 +6,46 @@
  */
 import { createClient } from '@supabase/supabase-js';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '');
+const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8001' : '');
 
 // ---------------------------------------------------------------------------
 // Supabase Client Management (Strictly from Frontend Environment)
 // ---------------------------------------------------------------------------
 
-const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || '').trim();
-const SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
+let SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || '').trim();
+let SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
+
+let _supabaseInstance = null;
+let _authListenerAttached = false;
+let _configFetchAttempted = false;
+
+export async function fetchRemoteAuthConfig() {
+  if (_configFetchAttempted) return;
+  _configFetchAttempted = true;
+  if (SUPABASE_URL && SUPABASE_ANON_KEY) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/auth/config`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.supabase_url && data.supabase_anon_key) {
+        SUPABASE_URL = data.supabase_url.trim();
+        SUPABASE_ANON_KEY = data.supabase_anon_key.trim();
+      }
+    }
+  } catch {
+    // quiet fallback
+  }
+}
+
+// Auto-discover Supabase config from backend if missing at build time
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  fetchRemoteAuthConfig();
+}
 
 export function isSupabaseConfigured() {
   return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 }
-
-let _supabaseInstance = null;
-let _authListenerAttached = false;
 
 export function getSupabaseClient() {
   if (SUPABASE_URL && SUPABASE_ANON_KEY) {
@@ -201,8 +226,14 @@ async function fetchDemoCache() {
 export async function login(email, password) {
   const cleanEmail = email.trim().toLowerCase();
 
+  // Try to obtain or initialize Supabase client
+  let client = getSupabaseClient();
+  if (!client && (!SUPABASE_URL || !SUPABASE_ANON_KEY)) {
+    await fetchRemoteAuthConfig();
+    client = getSupabaseClient();
+  }
+
   // 1. Supabase Auth if client-side credentials are configured
-  const client = getSupabaseClient();
   if (client) {
     let sbData, sbErr;
     try {
